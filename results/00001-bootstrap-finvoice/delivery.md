@@ -1,0 +1,11 @@
+# Finvoice published privately
+
+Codex, 2026-10-27. The new app is published at https://github.com/lets-getitnow/finvoice with PRIVATE visibility and main as its default branch. Local directory: `/Users/hunterp/dev/finvoice`. The independent content commit is `1f7cf3ff8e66698d5a6a3cec65982009a4051dc3`; it was pushed normally and verified to match the remote main SHA. A final evidence commit records this delivery.
+
+Only the portable kernel, property voice assistant and their new project documentation/tests are included. The original analysis, simulations, vendor material, prior specifications/results, unrelated LiveKit demos, original Git history, cloud deployment identity, secrets and real dataset are absent. All eleven kernel files match the source; all 39 required kernel links resolve. The copied source snapshot still matches the original source files after publication. The original repository and existing deployment were not modified.
+
+All 31 synthetic engineering tests passed, along with syntax and scope scans. Actual browser checks used the original CSV outside the new tree: startup, source-backed valuation, missing-address error, reset/recovery and 390px responsive layout passed. They verify imported-source matching and UI behavior, not independent valuation truth or measured caller accuracy. Real microphone-to-speaker audio remains unverified. No company data was added to Git or substituted with generated operational records.
+
+Run the independent app with `python3 server.py --csv '/absolute/path/to/company-export.csv'`; see the root README. The application's existing browser-side data model remains a trusted-local prototype, not a server-authorized customer portal. GitHub publication did not deploy a website or change any existing Site.
+
+Self-review checked intent coverage, kernel dependency closure, selected source identity, new-root history, exclusions, final test evidence, GitHub visibility and matching remote commit. No extraction, test, creation or push failures occurred. GitHub repository creation occurred once; one initial normal push succeeded. The final evidence commit uses another normal push. No pending owner decisions remain for this extraction/publication.
