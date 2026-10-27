@@ -1,0 +1,43 @@
+
+> finvoice@0.1.0 test
+> node --test tests/*.test.mjs
+
+✔ 00011 synthetic UI: fresh hosted visit loads published data without import (3.698459ms)
+✔ 00007 synthetic UI: import, exact lookup and spoken response lifecycle (0.758708ms)
+✔ 00007 synthetic UI: speech transcript routes through the same actual lookup (0.510334ms)
+✔ 00007 synthetic UI: permission denial, retry, no-result and typed recovery (0.357375ms)
+✔ 00007 synthetic UI: bad import preserves working data and source markup stays text (0.556417ms)
+✔ 00007 synthetic UI: conflicting import never speaks a chosen valuation (0.280625ms)
+✔ 00009 synthetic UI: fuzzy voice clarification, confirmation, reset and rejected-match correction (1.327833ms)
+✔ 00011 synthetic UI: failed published load offers retry and preserves input (4.36925ms)
+✔ 00011 synthetic UI: late published response cannot replace a newer imported dataset (1.342208ms)
+✔ 00007 synthetic UI: unsupported recognition keeps typed lookup available (1.250459ms)
+✔ 00007 normalizes address abbreviations and leading speech numbers (1.47575ms)
+✔ 00007 returns unique exact address, city disambiguates and numeric mismatch never substitutes (1.10225ms)
+✔ 00007 CSV preserves quoted fields, nulls, zero and BOM (14.856208ms)
+✔ 00007 combines repeats while retaining conflict values and exclusion counts (0.223541ms)
+✔ 00007 rejects malformed or unusable CSV rather than inventing data (0.378292ms)
+✔ 00007 never treats CSV markup or text as executable instructions (0.089792ms)
+✔ 00009 ZIP anchors constrain spelling/phonetic recovery and require confirmation (6.36425ms)
+✔ 00009 keeps address context across ZIP follow-up, correction and reset (0.649292ms)
+✔ 00009 asks one distinguishing detail and accepts suffix/unit/direction and ordinal answers (0.547958ms)
+✔ 00009 joined words, spoken numbers and missing house number recover without automatic fuzzy release (1.382708ms)
+✔ 00009 negative confirmation never releases a value; locality corrections preserve street (0.508125ms)
+✔ 00009 large sets ask for detail without presenting hidden ordinal choices (0.725292ms)
+✔ 00009 conflicting values stay attached; explicit unknown city and units never disappear (0.7615ms)
+✔ 00009 five-digit house numbers are distinct from trailing ZIP and ZIP+4 (0.209416ms)
+✔ 00009 locality embedded in source street is parsed without corrupting units or Texas street names (0.89025ms)
+✔ 00009 broadens locality only on an explicit request and confirms the recovered address (1.002333ms)
+✔ 00009 recognition alternatives stay within supplied locality and require confirmation (0.302083ms)
+✔ 00009 street keyword after exact completion starts a fresh search (3.751333ms)
+✔ 00009 street keyword after fuzzy confirmation clears old house and locality (0.351ms)
+✔ 00009 active clarification retains address and locality constraints (0.217834ms)
+✔ 00009 explicit street or number correction after completion retains other slots (0.318458ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 126.652875

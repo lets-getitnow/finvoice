@@ -1,0 +1,340 @@
+{
+  "source_repository": "fino",
+  "source_head": "5326bc2",
+  "application_source_head": "6ec8636",
+  "snapshot": "current working files; fresh destination history",
+  "copied_files": [
+    {
+      "source": "KERNEL.MD",
+      "destination": "KERNEL.MD",
+      "sha256": "e5fabf58bafe1cff04568f55d4d40b8cd98fd82dc13c386c9069402e498b7d64",
+      "kind": "kernel",
+      "destination_sha256": "e5fabf58bafe1cff04568f55d4d40b8cd98fd82dc13c386c9069402e498b7d64",
+      "matches_source": true
+    },
+    {
+      "source": "AGENTS.md",
+      "destination": "AGENTS.md",
+      "sha256": "3a576e38d658d812d4c79da8edf1c5e9c2a416d16ad5f39ce780c204b19d2516",
+      "kind": "kernel",
+      "destination_sha256": "3a576e38d658d812d4c79da8edf1c5e9c2a416d16ad5f39ce780c204b19d2516",
+      "matches_source": true
+    },
+    {
+      "source": "WORKFLOW.md",
+      "destination": "WORKFLOW.md",
+      "sha256": "683d31910b631297b433362070e753daf181efccdac9b73d269a334dce489157",
+      "kind": "kernel",
+      "destination_sha256": "683d31910b631297b433362070e753daf181efccdac9b73d269a334dce489157",
+      "matches_source": true
+    },
+    {
+      "source": "REPORTING.md",
+      "destination": "REPORTING.md",
+      "sha256": "d338ab2bd1bf21a510831c502972b14878ed2217cacd191267e28e4f0d4f1853",
+      "kind": "kernel",
+      "destination_sha256": "d338ab2bd1bf21a510831c502972b14878ed2217cacd191267e28e4f0d4f1853",
+      "matches_source": true
+    },
+    {
+      "source": "specs/README.md",
+      "destination": "specs/README.md",
+      "sha256": "fdad949e4a4c8e03bfcf2d57224ed7400cb0407960211fd23f8bbc6f05293445",
+      "kind": "kernel",
+      "destination_sha256": "fdad949e4a4c8e03bfcf2d57224ed7400cb0407960211fd23f8bbc6f05293445",
+      "matches_source": true
+    },
+    {
+      "source": "templates/plan.md",
+      "destination": "templates/plan.md",
+      "sha256": "cb92e6e86324be146b072c31a99538ca7ce5da775b516d1aeefdcf8c0243192c",
+      "kind": "kernel",
+      "destination_sha256": "cb92e6e86324be146b072c31a99538ca7ce5da775b516d1aeefdcf8c0243192c",
+      "matches_source": true
+    },
+    {
+      "source": "templates/tasks.md",
+      "destination": "templates/tasks.md",
+      "sha256": "b284656f166d571240a85356bd969fe50ca3bfe1d5a17d8af4a87de1c1ad4234",
+      "kind": "kernel",
+      "destination_sha256": "b284656f166d571240a85356bd969fe50ca3bfe1d5a17d8af4a87de1c1ad4234",
+      "matches_source": true
+    },
+    {
+      "source": "templates/verification.md",
+      "destination": "templates/verification.md",
+      "sha256": "80be467f8657d330b4547cecffeff8818b1a22c4ab6c8ab0c344bea8c395092a",
+      "kind": "kernel",
+      "destination_sha256": "80be467f8657d330b4547cecffeff8818b1a22c4ab6c8ab0c344bea8c395092a",
+      "matches_source": true
+    },
+    {
+      "source": "templates/execution-report.md",
+      "destination": "templates/execution-report.md",
+      "sha256": "154331c1a53272ac47d26c18630daf9f167eb420cd24eb9df3bb611173e81be9",
+      "kind": "kernel",
+      "destination_sha256": "154331c1a53272ac47d26c18630daf9f167eb420cd24eb9df3bb611173e81be9",
+      "matches_source": true
+    },
+    {
+      "source": "skills/PROPOSALS.md",
+      "destination": "skills/PROPOSALS.md",
+      "sha256": "417f061b39b5a2b97836395598a38d60b620f961caf9b5f5bf38770713eeb151",
+      "kind": "kernel",
+      "destination_sha256": "417f061b39b5a2b97836395598a38d60b620f961caf9b5f5bf38770713eeb151",
+      "matches_source": true
+    },
+    {
+      "source": "skills/preserve-efficient-paths/SKILL.md",
+      "destination": "skills/preserve-efficient-paths/SKILL.md",
+      "sha256": "7cd1125c0b1d68e84025bb145cbe5d48cd0188baa5569abf7b122a535dfed518",
+      "kind": "kernel",
+      "destination_sha256": "7cd1125c0b1d68e84025bb145cbe5d48cd0188baa5569abf7b122a535dfed518",
+      "matches_source": true
+    },
+    {
+      "source": "property-voice/dist/index.html",
+      "destination": "dist/index.html",
+      "sha256": "9ddc9defd1429ec89254e2baecf373805ff367d3afe6a940879270244909dbdd",
+      "kind": "application",
+      "destination_sha256": "2ac795c3597322a781eadd4492fe6b1bc98aebddcf9f69052936c006a8308930",
+      "matches_source": false
+    },
+    {
+      "source": "property-voice/dist/styles.css",
+      "destination": "dist/styles.css",
+      "sha256": "8343426e2ba628553b76cedd00566b4238c2c756cc7c570fc0ac18bc64e66618",
+      "kind": "application",
+      "destination_sha256": "8343426e2ba628553b76cedd00566b4238c2c756cc7c570fc0ac18bc64e66618",
+      "matches_source": true
+    },
+    {
+      "source": "property-voice/dist/lookup.mjs",
+      "destination": "dist/lookup.mjs",
+      "sha256": "13312c59c2fab8c43e162ca3de7092b7b6f20dd8a430ff7a9644eb4d8ddfd60c",
+      "kind": "application",
+      "destination_sha256": "13312c59c2fab8c43e162ca3de7092b7b6f20dd8a430ff7a9644eb4d8ddfd60c",
+      "matches_source": true
+    },
+    {
+      "source": "property-voice/dist/resolver.mjs",
+      "destination": "dist/resolver.mjs",
+      "sha256": "7eb832ff1db626083765070c59f840ca19ca40e7d5c826bc684989e67e86417a",
+      "kind": "application",
+      "destination_sha256": "7eb832ff1db626083765070c59f840ca19ca40e7d5c826bc684989e67e86417a",
+      "matches_source": true
+    },
+    {
+      "source": "property-voice/dist/app.mjs",
+      "destination": "dist/app.mjs",
+      "sha256": "77991e6604885c513e27a86b8f3cef0604ff0d4b7b03eb829c9be862aff24ef8",
+      "kind": "application",
+      "destination_sha256": "0327d58d1942cc3b9e76c1b4d71966e8ce1ffc83048734a39c7a5194c47294a3",
+      "matches_source": false
+    },
+    {
+      "source": "property-voice/server.py",
+      "destination": "server.py",
+      "sha256": "c8786ef277ae09aca7efe62059f87da0eb7681874c758a65523dbb7d324ef89b",
+      "kind": "application",
+      "destination_sha256": "8a3b1531a267cc1c962c4eed6c6d7e10a04676bf1e6236b2b5b76f9088fdd7db",
+      "matches_source": false
+    },
+    {
+      "source": "property-voice/tests/00007-browser-state.test.mjs",
+      "destination": "tests/00007-browser-state.test.mjs",
+      "sha256": "4ad79b2fbcbd3bec8447598e3f77cf94766cb81aef3d7fb7c71ea11a480118cf",
+      "kind": "application",
+      "destination_sha256": "4ad79b2fbcbd3bec8447598e3f77cf94766cb81aef3d7fb7c71ea11a480118cf",
+      "matches_source": true
+    },
+    {
+      "source": "property-voice/tests/00007-lookup.test.mjs",
+      "destination": "tests/00007-lookup.test.mjs",
+      "sha256": "3d2f4f64f54a7e6fae12e017b566aa3b5fccca2c3c30f5a4b4e8ee9e2e8fe8ce",
+      "kind": "application",
+      "destination_sha256": "3d2f4f64f54a7e6fae12e017b566aa3b5fccca2c3c30f5a4b4e8ee9e2e8fe8ce",
+      "matches_source": true
+    },
+    {
+      "source": "property-voice/tests/00009-address-recovery.test.mjs",
+      "destination": "tests/00009-address-recovery.test.mjs",
+      "sha256": "5b129b8e1ab2cd766e316eda312f4b905dc415c80d93105714cd2cca82801450",
+      "kind": "application",
+      "destination_sha256": "5b129b8e1ab2cd766e316eda312f4b905dc415c80d93105714cd2cca82801450",
+      "matches_source": true
+    },
+    {
+      "source": "property-voice/tests/00009-search-session.test.mjs",
+      "destination": "tests/00009-search-session.test.mjs",
+      "sha256": "1f43943c87179cb7f38944b01cd78405d6d5af50777847ec8101facd06fba7e3",
+      "kind": "application",
+      "destination_sha256": "1f43943c87179cb7f38944b01cd78405d6d5af50777847ec8101facd06fba7e3",
+      "matches_source": true
+    }
+  ],
+  "required_kernel_links": [
+    {
+      "from": "KERNEL.MD",
+      "to": "AGENTS.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "WORKFLOW.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "REPORTING.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "specs/README.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "templates/plan.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "templates/tasks.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "templates/verification.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "templates/execution-report.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "skills/PROPOSALS.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "skills/preserve-efficient-paths/SKILL.md"
+    },
+    {
+      "from": "KERNEL.MD",
+      "to": "templates/verification.md"
+    },
+    {
+      "from": "AGENTS.md",
+      "to": "WORKFLOW.md"
+    },
+    {
+      "from": "AGENTS.md",
+      "to": "REPORTING.md"
+    },
+    {
+      "from": "AGENTS.md",
+      "to": "specs/README.md"
+    },
+    {
+      "from": "AGENTS.md",
+      "to": "REPORTING.md"
+    },
+    {
+      "from": "AGENTS.md",
+      "to": "REPORTING.md"
+    },
+    {
+      "from": "WORKFLOW.md",
+      "to": "AGENTS.md"
+    },
+    {
+      "from": "WORKFLOW.md",
+      "to": "specs/README.md"
+    },
+    {
+      "from": "WORKFLOW.md",
+      "to": "REPORTING.md"
+    },
+    {
+      "from": "WORKFLOW.md",
+      "to": "templates/plan.md"
+    },
+    {
+      "from": "WORKFLOW.md",
+      "to": "templates/tasks.md"
+    },
+    {
+      "from": "WORKFLOW.md",
+      "to": "skills/preserve-efficient-paths/SKILL.md"
+    },
+    {
+      "from": "WORKFLOW.md",
+      "to": "templates/verification.md"
+    },
+    {
+      "from": "WORKFLOW.md",
+      "to": "REPORTING.md"
+    },
+    {
+      "from": "specs/README.md",
+      "to": "../WORKFLOW.md"
+    },
+    {
+      "from": "specs/README.md",
+      "to": "../templates/plan.md"
+    },
+    {
+      "from": "specs/README.md",
+      "to": "../templates/tasks.md"
+    },
+    {
+      "from": "specs/README.md",
+      "to": "../templates/verification.md"
+    },
+    {
+      "from": "templates/plan.md",
+      "to": "../WORKFLOW.md"
+    },
+    {
+      "from": "templates/tasks.md",
+      "to": "../WORKFLOW.md"
+    },
+    {
+      "from": "templates/verification.md",
+      "to": "../WORKFLOW.md"
+    },
+    {
+      "from": "templates/verification.md",
+      "to": "../REPORTING.md"
+    },
+    {
+      "from": "templates/execution-report.md",
+      "to": "../REPORTING.md"
+    },
+    {
+      "from": "skills/PROPOSALS.md",
+      "to": "preserve-efficient-paths/SKILL.md"
+    },
+    {
+      "from": "skills/PROPOSALS.md",
+      "to": "../WORKFLOW.md"
+    },
+    {
+      "from": "skills/PROPOSALS.md",
+      "to": "../WORKFLOW.md"
+    },
+    {
+      "from": "skills/preserve-efficient-paths/SKILL.md",
+      "to": "../../AGENTS.md"
+    },
+    {
+      "from": "skills/preserve-efficient-paths/SKILL.md",
+      "to": "../../WORKFLOW.md"
+    },
+    {
+      "from": "skills/preserve-efficient-paths/SKILL.md",
+      "to": "../../templates/verification.md"
+    }
+  ],
+  "excluded": "all files not explicitly allowlisted; company CSV remains external",
+  "intentional_application_differences": [
+    "dist/index.html: Finvoice identity and accurate standalone CSV/privacy wording",
+    "dist/app.mjs: remove source-only public-hosting authorization comment",
+    "server.py: standalone Finvoice module description"
+  ]
+}
