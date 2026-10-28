@@ -1,22 +1,61 @@
+/**
+ * DOM controller for the current hosted UI. Resolving and speech use an injected
+ * VoiceSession; data and confirmation decisions remain server-owned. Text rendering
+ * keeps source markup inert. Debounced previews never reveal a headline valuation.
+ */
 import {money} from './lookup.mjs';
 import {VoiceSession} from './voice-session.mjs';
 import {AddressToolSession} from './address-tools.mjs';
 
+/**
+ * Mount against index.html IDs and enable controls. voiceFactory permits isolated tests; the
+ * default creates a LiveKit session. Installs page handlers and owns state until page exit.
+ */
 export function mountApp({voiceFactory=options=>new VoiceSession(options)}={}){
+ /**
+  * Resolve the required static DOM contract by ID.
+  */
  const $=id=>document.getElementById(id);
  const tools=new AddressToolSession();
+ /**
+  * Track UI mode, preview generations and displayed/pending/selected card identity; generations
+  * suppress stale HTTP previews.
+  */
  let mode='ready',suggestionHistory=[],requestVersion=0,previewTimer=null,presented=null,pendingId=null,selectedId=null;
+ /**
+  * Recognize short yes/no and ordinal replies that retain the displayed choices.
+  */
  const selection=value=>/^(?:yes|yeah|correct|confirm|no|nope|(?:the |option |number )?(?:first|second|third|[123])(?: one| option)?)$/i.test(value.trim());
+ /**
+  * Assign literal text and hide an element when that text is empty.
+  */
  const show=(id,value)=>{$(id).textContent=value;$(id).hidden=!value;};
+ /**
+  * Synchronize app mode, action label, pressed state and recoverable status/error text.
+  */
  function state(next,message='',error=false){
   mode=next;$('app').dataset.state=next;
   $('talk-label').textContent=next==='listening'?'Finish':['connecting','processing','speaking'].includes(next)?'Stop':'Speak';
   $('talk').setAttribute('aria-pressed',String(next==='listening'));
   $('status').dataset.error=String(error);show('status',message);
  }
+ /**
+  * Create a text-only DOM element with an optional CSS class; never interpret source strings as
+  * HTML.
+  */
  const text=(tag,value,className)=>{const node=document.createElement(tag);node.textContent=value;if(className)node.className=className;return node;};
+ /**
+  * Discard the card snapshot and selection identities, clear nodes and hide the choices panel.
+  */
  function clearChoices(){presented=null;pendingId=null;selectedId=null;$('choices').replaceChildren();$('choices-panel').hidden=true;}
+ /**
+  * Render answer visibility, matched styling and label separately from the price output.
+  */
  function answer(message,matched=false){$('answer').hidden=!message;$('answer').dataset.matched=String(matched);$('answer-label').hidden=!matched;show('result',message);}
+ /**
+  * Reflect pending and selected IDs in accessible button state, action text and loading
+  * indicators.
+  */
  function updateCards(){
   if(!presented)return;
   $('choices').setAttribute('aria-busy',String(pendingId!==null));
@@ -26,6 +65,11 @@ export function mountApp({voiceFactory=options=>new VoiceSession(options)}={}){
    card.action.textContent=loading?'Loading…':selected?'Selected':'View price';card.arrow.textContent=selected?'✓':'→';
   }
  }
+ /**
+  * Render at most three safe-integer-ID candidates. Capture their history/result snapshot so
+  * card clicks resolve an explicit ordinal through the same tool protocol; removed snapshots
+  * cannot act.
+  */
  function renderChoices(result,history){
   const records=(result.matches||[]).slice(0,3).filter(r=>Number.isSafeInteger(r.id));
   if(!records.length){clearChoices();return;}
@@ -54,6 +98,10 @@ export function mountApp({voiceFactory=options=>new VoiceSession(options)}={}){
   }
   updateCards();
  }
+ /**
+  * Display a committed result. Only exact/confirmed records can show a single finite USD value;
+  * preserve zero, disclose conflicts and never choose one conflicting price.
+  */
  function render(result){
   show('price','');pendingId=null;
   if(['confirmed','exact'].includes(result.kind)){
@@ -69,16 +117,45 @@ export function mountApp({voiceFactory=options=>new VoiceSession(options)}={}){
   else{clearChoices();answer(result.prompt||'');}
  }
  const voice=voiceFactory({
+  /**
+   * Render interim/final text; invalidate pending previews. Interim transcripts debounce read-
+   * only suggestions, while final text waits for the worker tool turn.
+   */
   onTranscript(value,final){show('price','');if(!selection(value)){clearChoices();answer('');}show('transcript',`You said: “${value}”`);$('address').value=value;if(final){clearTimeout(previewTimer);++requestVersion;state('processing','Understanding your address…');}else{clearTimeout(previewTimer);++requestVersion;previewTimer=setTimeout(()=>void preview(),300);}},
+  /**
+   * Delegate worker tool RPCs to the broker; the transport validates current agent and turn.
+   */
   onToolCall:payload=>tools.invoke(payload),
+  /**
+   * Show progress for each server tool phase without inventing a lookup result.
+   */
   onToolEvent(event){
    if(event.status==='started')state('processing',({apply_address_reply:'Understanding your reply…',find_address_candidates:'Finding possible addresses…',choose_clarification:'Choosing the next question…'})[event.name]||'Working…');
   },
+  /**
+   * Commit only a completed matching broker turn; return false to reject stale/incomplete
+   * delivery.
+   */
   onAddressResult(result,turn){const committed=tools.commit(turn);if(!committed)return false;suggestionHistory=[];render(committed.result);state('processing','Preparing reply…');return true;},
+  /**
+   * Invalidate the broker draft whenever voice work is interrupted.
+   */
   onCancel(){tools.cancel();},
+  /**
+   * Translate transport lifecycle state into the action/status UI.
+   */
   onState(name){state(name,({connecting:'Connecting…',listening:'Listening…',processing:'Working…',speaking:'Speaking…',ready:''})[name]||'');},
+  /**
+   * Cancel pending tool state, release card loading state and expose sign-in recovery when
+   * needed.
+   */
   onError(message){tools.cancel();pendingId=null;updateCards();state('ready',message,true);$('sign-in').hidden=!/sign in/i.test(message);}
  });
+ /**
+  * POST bounded history and rejected IDs to read-only search. Ignore obsolete responses and
+  * failures, seed candidate history for follow-ups, and render choices without speaking or
+  * showing a headline price.
+  */
  async function preview(){
   const value=$('address').value.trim();if(!value)return;
   const version=++requestVersion;
@@ -92,13 +169,28 @@ export function mountApp({voiceFactory=options=>new VoiceSession(options)}={}){
    if(result.matches?.length)renderChoices(result,history);else{clearChoices();answer(result.prompt||'');}
   }catch{/* Read-only preview failure must not interrupt voice; committed tool failures are visible. */}
  }
+ /**
+  * Typing cancels active voice and tool work, clears obsolete prices/cards and debounces
+  * recommendations by 250 ms.
+  */
  $('address').oninput=()=>{tools.cancel();if(mode!=='ready'){voice.stop();state('ready');}show('price','');clearChoices();answer('');clearTimeout(previewTimer);++requestVersion;if(!$('address').value.trim()){show('result','');return;}previewTimer=setTimeout(()=>void preview(),250);};
+ /**
+  * Enter cancels preview work and resolves typed text through LiveKit; it does not bypass server
+  * confirmation.
+  */
  $('search-form').onsubmit=event=>{event.preventDefault();show('price','');clearChoices();answer('');clearTimeout(previewTimer);++requestVersion;const text=$('address').value.trim();if(text)void voice.resolve(text);};
+ /**
+  * One control finishes capture, stops active work, or starts a fresh listen according to the UI
+  * mode.
+  */
  $('talk').onclick=()=>{
   if(mode==='listening'){void voice.finish();return;}
   if(['connecting','processing','speaking'].includes(mode)){voice.stop();pendingId=null;updateCards();state('ready');return;}
   clearTimeout(previewTimer);++requestVersion;void voice.listen();
  };
+ /**
+  * Release debounce timers and disconnect transport when the document leaves.
+  */
  window.addEventListener('pagehide',()=>{clearTimeout(previewTimer);void voice.disconnect();});
  $('talk').disabled=false;
  $('submit').disabled=false;

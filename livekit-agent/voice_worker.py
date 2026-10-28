@@ -17,11 +17,13 @@ logger = logging.getLogger('finvoice.voice')
 class SpeechBridge:
     """Sequence every turn so delayed RPCs cannot speak obsolete results."""
     def __init__(self, source, tts, emit):
+        """Own an RTC audio source, TTS provider, event emitter and cancellable playback task."""
         self.source, self.tts, self.emit = source, tts, emit
         self.version = 0
         self.task = None
 
     async def stop(self, version):
+        """Reject stale/noninteger versions; otherwise cancel playback, drain its task and clear queued audio."""
         if not isinstance(version, int) or isinstance(version, bool) or version < self.version:
             return False
         self.version = version
@@ -34,6 +36,7 @@ class SpeechBridge:
         return True
 
     async def speak(self, version, text, *, current_turn=False):
+        """Validate text up to 4000 characters and schedule versioned playback; same-turn speech requires current_turn."""
         if not isinstance(text, str) or not text.strip() or len(text) > 4000:
             raise ValueError('Invalid speech text')
         if not isinstance(version, int) or isinstance(version, bool) or version < self.version or (version == self.version and not current_turn):
@@ -43,6 +46,7 @@ class SpeechBridge:
         return True
 
     async def _play(self, version, text):
+        """Stream synthesized frames while current, wait for playout and emit completion; sanitize provider failures and propagate cancellation."""
         try:
             async with self.tts.synthesize(text) as stream:
                 first = True
@@ -65,13 +69,16 @@ class SpeechBridge:
 
 
 class Transcription:
+    """Own one cancellable STT stream; accumulate final segments and emit interim/final browser events without storing history."""
     def __init__(self, model, emit, on_final=None):
+        """Inject the STT model/emitter and optional synchronous final callback; start with no stream."""
         self.model, self.emit, self.on_final = model, emit, on_final
         self.version = 0
         self.stream = None
         self.task = None
 
     async def stop(self):
+        """Invalidate the active version, cancel and await the reader, then close its provider stream."""
         self.version = 0
         if self.task:
             self.task.cancel()
@@ -83,12 +90,14 @@ class Transcription:
             self.stream = None
 
     async def start(self, version):
+        """Close previous input and start a versioned provider stream with a background reader task."""
         await self.stop()
         self.version = version
         self.stream = self.model.stream()
         self.task = asyncio.create_task(self._read(version, self.stream))
 
     async def _read(self, version, stream):
+        """Accumulate final segments without dropping house-number fragments; emit interim updates and finalize on end-of-speech or exhaustion. Log error type only."""
         text = ''
         reported = False
         final_segments = []
@@ -121,15 +130,18 @@ class Transcription:
             await self.emit({'type': 'input_error', 'id': version})
 
     def push(self, frame):
+        """Forward a microphone frame only while the current stream reader is active."""
         if self.stream and self.task and not self.task.done():
             self.stream.push_frame(frame)
 
     def finish(self):
+        """Signal end of audio input if a reader is still active; final text arrives asynchronously."""
         if self.stream and self.task and not self.task.done():
             self.stream.end_input()
 
 
 async def forward_audio(track, transcription, stream_factory=rtc.AudioStream):
+    """Read mono 16 kHz RTC frames for the captured turn, discard stale audio and always close the stream, including on cancellation."""
     version = transcription.version
     frames = stream_factory(track, sample_rate=16000, num_channels=1)
     received = False
@@ -151,18 +163,21 @@ server = AgentServer(num_idle_processes=1, host='0.0.0.0', port=8081,
 
 @server.on('worker_registered')
 def registered(worker_id, server_info):
+    """Write the optional readiness sentinel after worker registration; never include credentials or transcripts."""
     if path := os.environ.get('FINVOICE_WORKER_READY_FILE'):
         Path(path).write_text('registered')
 
 
 @server.rtc_session(agent_name='finvoice')
 async def entrypoint(ctx: JobContext):
+    """Serve one dispatched browser identity with STT, ordered address tools and TTS. Reject invalid job identity, serialize control transitions and clean up on exit."""
     owner = json.loads(ctx.job.metadata).get('participant')
     if not isinstance(owner, str) or not owner.startswith('browser-'):
         raise ValueError('Missing browser participant identity')
     await ctx.connect()
 
     async def emit(message):
+        """Publish reliable turn events only to the dispatched browser on the Finvoice topic."""
         await ctx.room.local_participant.publish_data(json.dumps(message), reliable=True,
             destination_identities=[owner], topic=TOPIC)
 
@@ -176,6 +191,7 @@ async def entrypoint(ctx: JobContext):
     tool_task = None
 
     async def invoke_tool(payload):
+        """Forward the model tool envelope to the owner browser RPC and decode its JSON response; failures propagate."""
         response = await ctx.room.local_participant.perform_rpc(
             destination_identity=owner, method='finvoice.address_tool',
             payload=json.dumps(payload), response_timeout=10)
@@ -184,6 +200,7 @@ async def entrypoint(ctx: JobContext):
     address_agent = AddressToolAgent(invoke_tool, emit)
 
     async def resolve_and_speak(version, text):
+        """Bound tool resolution to 50 seconds and commit/speak only the current version under the control lock; cancelled or stale work cannot publish a result."""
         try:
             await transcription.stop()
             result = await asyncio.wait_for(address_agent.resolve(version,text),timeout=50)
@@ -203,10 +220,12 @@ async def entrypoint(ctx: JobContext):
                 await emit({'type':'tool_error','id':version})
 
     def schedule_turn(version,text):
+        """Schedule one resolution task for final text; control transitions cancel prior tasks before new capture."""
         nonlocal tool_task
         tool_task = asyncio.create_task(resolve_and_speak(version,text))
 
     async def cancel_tools():
+        """Cancel and await the owned tool task, tolerating cancellation, then release its handle."""
         nonlocal tool_task
         if tool_task:
             tool_task.cancel()
@@ -218,6 +237,7 @@ async def entrypoint(ctx: JobContext):
     control_lock = asyncio.Lock()
 
     async def read_audio(track):
+        """Forward owner microphone frames; propagate cancellation and report a generic input error only for the current turn."""
         version = transcription.version
         try:
             await forward_audio(track, transcription)
@@ -231,6 +251,7 @@ async def entrypoint(ctx: JobContext):
 
     @ctx.room.on('track_subscribed')
     def subscribed(track, publication, participant):
+        """Track audio-reader tasks only for the dispatched owner audio track; discard completed handles."""
         if participant.identity == owner and track.kind == rtc.TrackKind.KIND_AUDIO:
             task = asyncio.create_task(read_audio(track))
             audio_tasks.add(task)
@@ -238,6 +259,7 @@ async def entrypoint(ctx: JobContext):
 
     @ctx.room.local_participant.register_rpc_method('finvoice.control')
     async def control(data: rtc.RpcInvocationData):
+        """Authorize owner RPCs, validate positive integer versions and serialize listen/stop/finish/resolve/speak transitions. Map malformed commands to generic RPC errors."""
         if data.caller_identity != owner:
             raise rtc.RpcError(1401, 'Not authorized')
         try:
@@ -283,10 +305,12 @@ async def entrypoint(ctx: JobContext):
 
     @ctx.room.on('participant_disconnected')
     def left(participant):
+        """Release the session wait only when the dispatched browser participant leaves."""
         if participant.identity == owner:
             done.set()
 
     async def cleanup():
+        """Cancel tools/audio, close model clients and release the RTC source at shutdown."""
         await cancel_tools()
         await address_agent.aclose()
         await transcription.stop()

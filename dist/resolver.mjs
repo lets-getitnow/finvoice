@@ -1,13 +1,28 @@
+/**
+ * In-memory address retrieval and clarification. Heuristic matches require explicit choice;
+ * allowHousePrefix is an opt-in fallback, preserving strict lookup by default.
+ */
 import {normalize,addressQuery,displayAddress} from './lookup.mjs';
 
+/** Canonical street-type tokens recognized after normalization. */
 const suffixes=new Set('st ave dr rd blvd ln ct cir pl pkwy hwy ter trl'.split(' '));
+/** Direction tokens can be separate address components or part of a lexical street name. */
 const directions=new Set('n s e w ne nw se sw'.split(' '));
+/** Expanded directions used when comparing joined and separated street names. */
 const longDirections={n:'north',s:'south',e:'east',w:'west',ne:'northeast',nw:'northwest',se:'southeast',sw:'southwest'};
+/** Human-readable suffix labels for clarification prompts. */
 const longSuffixes={st:'Street',ave:'Avenue',dr:'Drive',rd:'Road',blvd:'Boulevard',ln:'Lane',ct:'Court',cir:'Circle',pl:'Place',pkwy:'Parkway',hwy:'Highway',ter:'Terrace',trl:'Trail'};
+/** Digit-by-digit spoken ZIP vocabulary; string values preserve leading zeros. */
 const digits={zero:'0',oh:'0',one:'1',two:'2',three:'3',four:'4',five:'5',six:'6',seven:'7',eight:'8',nine:'9'};
+/** Escape a known city string for literal matching in a trailing-locality regular expression. */
 const escapeRE=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+/**
+ * Split normalized street text into optional house, direction, name, suffix, postDirection and
+ * unit slots; remove a unit tail before parsing the street.
+ */
 function parts(street){
   const tokens=normalize(street).split(' ').filter(Boolean),result={};
+  // Support reversed street/house phrases before splitting units and canonical street components.
   if(tokens.length>1&&!/^\d/.test(tokens[0])&&/^\d+[a-z]?$/.test(tokens.at(-1)))tokens.unshift(tokens.pop());
   const unitAt=tokens.findIndex(t=>['apt','ste','#','unit'].includes(t));
   if(unitAt>=0){result.unit=tokens.slice(unitAt+1).join('');tokens.splice(unitAt);}
@@ -19,14 +34,25 @@ function parts(street){
   return result;
 }
 // Soundex is an uncalibrated retrieval signal, never a disclosure decision.
+/**
+ * Return a four-character Soundex-like key, or empty for no letters. Adjacent sound groups
+ * collapse; h/w do not reset the prior group.
+ */
 function soundKey(value){
   const letters=value.replace(/[^a-z]/g,'');if(!letters)return '';
   const groups=['bfpv','cgjkqsxz','dt','l','mn','r'];
+  /**
+   * Map a consonant to its Soundex group string; zero means no consonant group.
+   */
   const code=c=>String(groups.findIndex(g=>g.includes(c))+1);
   let out=letters[0],last=code(letters[0]);
   for(const c of letters.slice(1)){const next=code(c);if(next!=='0'&&next!==last)out+=next;if(!'hw'.includes(c))last=next;}
   return (out+'000').slice(0,4);
 }
+/**
+ * Compute insertion/deletion/substitution and adjacent-transposition distance with rolling rows;
+ * previous retains the transposition dependency.
+ */
 function editDistance(a,b){
   let row=Array.from({length:b.length+1},(_,i)=>i),previous=null;
   for(let i=1;i<=a.length;i++){const next=[i];for(let j=1;j<=b.length;j++){
@@ -35,7 +61,12 @@ function editDistance(a,b){
   }previous=row;row=next;}
   return row[b.length];
 }
+/** Join expanded directions and street-name words without spaces for lexical recovery. */
 function lexicalName(p){return [longDirections[p.direction],p.name,longDirections[p.postDirection]].filter(Boolean).join('').replace(/\s/g,'');}
+/**
+ * Return a heuristic score in [0,1]. Prefix/phonetic matches may score .78; unrelated names
+ * score zero. Thresholds are uncalibrated retrieval rules.
+ */
 function similarity(a,b){
   if(a===b)return 1;if(!a||!b)return 0;
   const length=Math.max(a.length,b.length),ratio=1-editDistance(a,b)/length;
@@ -43,9 +74,18 @@ function similarity(a,b){
   if(Math.min(a.length,b.length)>=4&&soundKey(a)===soundKey(b)&&ratio>=.45)return Math.max(.78,ratio);
   return ratio>=.70?ratio:0;
 }
+/** Render retained slots as a compact UI label, omitting unspecified components. */
 function contextLabel(s){return [s.house,s.direction,s.name,s.suffix,s.postDirection,s.unit?`unit ${s.unit}`:'',s.city,s.zip].filter(Boolean).join(' ');}
 
+/**
+ * Own one lookup session: retained slots, pending response, rejected IDs and confirmation
+ * requirement. Results expose kind, matches, total, context, prompt and optional field.
+ */
 export class AddressConversation {
+  /**
+   * Build street/locality indexes and initialize a session. allowHousePrefix opts into
+   * confirmation-only partial house retrieval. Record IDs must uniquely identify candidates.
+   */
   constructor(records,{allowHousePrefix=false}={}){
     this.allowHousePrefix=allowHousePrefix;
     this.slots={};this.cities=[...new Set(records.map(r=>r.cityKey).filter(Boolean))].sort((a,b)=>b.length-a.length);
@@ -54,7 +94,15 @@ export class AddressConversation {
     for(const e of this.entries){for(const [map,key] of [[this.byZip,e.record.zipKey],[this.byCity,e.record.cityKey]]){if(!key)continue;if(!map.has(key))map.set(key,[]);map.get(key).push(e);}}
     this.cities=[...this.byCity.keys()].sort((a,b)=>b.length-a.length);this.reset();
   }
+  /**
+   * Clear slots, pending choices, rejection history and confirmation state; return an empty
+   * result for the UI.
+   */
   reset(){this.slots={};this.pending=null;this.rejected=new Set();this.mustConfirm=false;return {kind:'empty',matches:[],total:0,context:'',prompt:'Say or type a house number and street name.'};}
+  /**
+   * Extract a slot update from text using the requested clarification field and known cities.
+   * Does not mutate session slots; numeric corrections carry a temporary correction flag.
+   */
   parse(raw,field,knownCities=this.cities){
     let value=raw.toLowerCase().trim().replace(/[?.!]+$/,'');const update={};
     value=value.replace(/\b(?:zip(?:\s*code)?|postal code)(?:\s+is)?\s*[:,-]?\s*((?:(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)\s*){5}|\d{5}(?:-\d{4})?)\b/g,(_,zip)=>{update.zip=/^\d/.test(zip)?zip.slice(0,5):zip.trim().split(/\s+/).map(w=>digits[w]).join('');return ' ';});
@@ -81,6 +129,11 @@ export class AddressConversation {
     if(directions.has(value))return {...update,direction:value};
     const p=parts(value);return {...update,...p};
   }
+  /**
+   * Consume at most 250 characters of a user turn, mutate session state and return a
+   * clarification or completed result. Up to two recognizer alternatives aid retrieval only
+   * after primary retrieval fails.
+   */
   respond(raw,alternatives=[]){
     raw=String(raw).trim().slice(0,250);if(!raw)return this.pending||this.reset();
     const simple=normalize(raw);
@@ -138,6 +191,11 @@ export class AddressConversation {
     const choices=matches.length===2?'first or second':'first, second, or third';
     return this.finish({kind:'choose',matches,total,field:field||'street',prompt:questions[field||'street']+(matches.length?` You can also choose an address below or say the ${choices} one.`:'')});
   }
+  /**
+   * Retrieve ranked entries within supplied locality, house/unit and compatible directions.
+   * Optional house-prefix fallback cannot produce an exact match. Prefer exact component matches, then compatible suffixes; stable record IDs
+   * break score ties.
+   */
   retrieve(s,prefix=false){
     let entries=s.zip?(this.byZip.get(s.zip)||[]):s.city?(this.byCity.get(s.city)||[]):this.entries;
     const found=[];
@@ -150,13 +208,26 @@ export class AddressConversation {
       const exact=!prefix&&!!s.house&&s.name===p.name&&s.suffix===p.suffix&&s.direction===p.direction&&s.postDirection===p.postDirection&&s.unit===p.unit;
       found.push({...e,score:score-(s.suffix&&s.suffix!==p.suffix ? .15 : 0),exact,recovered:!exact});
     }
+    // Try a house prefix only after strict retrieval fails; prefix candidates always require confirmation.
     if(!found.length&&!prefix&&this.allowHousePrefix&&s.house&&s.name)return this.retrieve(s,true);
     const exact=found.filter(c=>c.exact);if(exact.length)return exact;
     const compatible=found.filter(c=>(!s.suffix||s.suffix===c.p.suffix));
     return (compatible.length?compatible:found).sort((a,b)=>b.score-a.score||a.record.id-b.record.id);
   }
+  /**
+   * Attach current slot context, retain the response for the next turn and return that same
+   * result object.
+   */
   finish(result){result.context=contextLabel(this.slots);this.pending=result;return result;}
+  /**
+   * Replace slots with the chosen source address and finish. Callers must pass a displayed candidate; this
+   * method itself does not revalidate membership.
+   */
   confirm(record){this.slots={...this.parse(record.street,'source',[record.cityKey].filter(Boolean)),city:record.cityKey,zip:record.zipKey};return this.finish({kind:'confirmed',matches:[record],total:1,field:null,prompt:''});}
 }
 
+/**
+ * Compare whitespace-joined normalized street names with the shared heuristic similarity score;
+ * this is not a probability.
+ */
 export function streetNameScore(query,name){return similarity(query.replace(/\s/g,''),name.replace(/\s/g,''));}

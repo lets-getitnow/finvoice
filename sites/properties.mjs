@@ -1,7 +1,20 @@
+/**
+ * Authenticated property metadata and read-only preview API.
+ * Search uses server-owned source records; uploads are disabled and unconfirmed
+ * responses omit values. Platform identity comes from the trusted hosting header.
+ */
 import {resolveAddress} from './address-resolver.mjs';
 import {AddressConversation} from '../dist/resolver.mjs';
 import {serverInfo,loadHouse,recommendRecords} from './server-data.mjs';
+/**
+ * Return private no-store JSON varied by Cookie so lookup responses are not shared across users.
+ */
 const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Cookie'}});
+/**
+ * Route me/dataset/search, enforce identity and same-origin POST bounds, replay history and
+ * filter rejected IDs. Return sanitized HTTP errors; source adapter injection supports isolated
+ * tests.
+ */
 export async function properties(request,env,source={info:serverInfo,load:loadHouse,recommend:recommendRecords}){
  const path=new URL(request.url).pathname,owner=request.headers.get('oai-authenticated-user-id');
  if(path==='/api/me')return reply({signedIn:!!owner});

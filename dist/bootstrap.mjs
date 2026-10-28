@@ -1,3 +1,7 @@
+/**
+ * Load and mount the hosted controller after the static DOM exists.
+ * If import/mount fails, show a recovery message and keep both controls disabled.
+ */
 try {
   const {mountApp}=await import('./app.mjs');
   mountApp();

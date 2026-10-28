@@ -1,36 +1,63 @@
 // Synthetic UI and browser speech doubles. No real audio or company data is used.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+/**
+ * Minimal DOM double: retain text/children and control state; no layout, HTML parsing or real
+ * event bubbling.
+ */
 class Element {
+  /** Initialize mutable fields used by app.mjs; each element owns its own children. */
   constructor(){this.children=[];this.dataset={};this.textContent='';this.hidden=false;this.value='';this.checked=true;this.disabled=false;this.files=[];}
+  /** Append text/node doubles in order. */
   append(...items){this.children.push(...items);}
+  /** Replace the rendered subtree without emulating browser layout. */
   replaceChildren(...items){this.children=items;}
+  /** Expose attributes as properties for assertions. */
   setAttribute(key,value){this[key]=value;}
+  /** Return one stable child span, sufficient for the talk-button label. */
   querySelector(){this.span??=new Element();return this.span;}
+  /** Record requested focus without a real browser focus manager. */
   focus(){this.focused=true;}
+  /** Dispatch the installed click handler synchronously if present. */
   click(){this.onclick?.();}
 }
+// Stable ID registry lets assertions inspect the same doubles the application changes.
 const elements=new Map();const get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);};
 globalThis.document={getElementById:get,querySelector:()=>get('panel'),createElement:()=>new Element(),createElementNS:()=>new Element(),createTextNode:value=>({textContent:value})};
 let activeRecognition,utterance;
+/** Deterministic speech double; tests manually deliver transcripts and error events. */
 class SyntheticRecognition {
+  /** Capture the latest instance so tests can inject events. */
   constructor(){activeRecognition=this;}
+  /** Deliver the start event immediately, without microphone access. */
   start(){this.onstart?.();}
+  /** Finish synchronously without manufacturing a transcript. */
   stop(){this.onend?.();}
+  /** Emit end even on abort to exercise application callback invalidation. */
   abort(){this.onend?.();}
 }
+// Synthesis records the last utterance; cancel is inert and tests trigger completion explicitly.
 const synthesis={cancel(){},speak(u){utterance=u;}};
+// Utterance constructor captures speech text; lifecycle/listener stubs perform no browser I/O.
 globalThis.window={SpeechRecognition:SyntheticRecognition,SpeechSynthesisUtterance:class{constructor(text){this.text=text;}},speechSynthesis:synthesis,addEventListener(){}};
 globalThis.SpeechSynthesisUtterance=window.SpeechSynthesisUtterance;
 globalThis.speechSynthesis=synthesis;
 globalThis.location={hostname:'example.test'};
 const csv='street,city,state,postal_code,property_value\n100 EXAMPLE ST,EXAMPLE CITY,Texas,00000,123456\n';
+// Fetch returns only the isolated CSV and tracks requests; no network is used.
 let fetches=[];
 globalThis.fetch=async url=>{fetches.push(url);return {ok:true,text:async()=>csv};};
 await import('../dist/app.mjs');
+// Drain startup promise work before inspecting the published-load UI.
 await new Promise(setImmediate);
+/** Drive the real file-change handler with an in-memory synthetic file and await completion. */
 async function importFile(content){get('file').files=[{name:'synthetic-example.csv',size:content.length,text:async()=>content}];await get('file').onchange({target:get('file')});}
+/**
+ * Collect literal subtree text recursively; this cannot prove actual DOM markup safety or
+ * layout.
+ */
 const allText=e=>[e.textContent,...e.children.map(c=>typeof c==='string'?c:allText(c))].join(' ');
+// Verify fresh hosted visit loads published data without import.
 test('00011 synthetic UI: fresh hosted visit loads published data without import',()=>{
   assert.deepEqual(fetches,['./data/properties.csv']);
   assert.equal(get('record-count').textContent,'1');assert.equal(get('source-name').textContent,'Published Texas property export');
@@ -38,6 +65,7 @@ test('00011 synthetic UI: fresh hosted visit loads published data without import
   get('speak-toggle').checked=false;get('address').value='100 Example Street';get('search-form').onsubmit({preventDefault(){}});
   assert.match(allText(get('result-area')),/\$123,456/);get('speak-toggle').checked=true;
 });
+// Verify import, exact lookup and spoken response lifecycle.
 test('00007 synthetic UI: import, exact lookup and spoken response lifecycle',async()=>{
   await importFile(csv);assert.equal(get('record-count').textContent,'1');
   get('address').value='100 Example Street';get('search-form').onsubmit({preventDefault(){}});
@@ -46,6 +74,7 @@ test('00007 synthetic UI: import, exact lookup and spoken response lifecycle',as
   assert.equal(get('panel').dataset.state,'speaking');
   utterance.onend();assert.equal(get('panel').dataset.state,'ready');
 });
+// Verify speech transcript routes through the same actual lookup.
 test('00007 synthetic UI: speech transcript routes through the same actual lookup',()=>{
   get('talk').onclick();assert.equal(get('panel').dataset.state,'listening');
   const result=[{transcript:'What is the valuation of one hundred Example Street?'}];result.isFinal=true;
@@ -55,6 +84,7 @@ test('00007 synthetic UI: speech transcript routes through the same actual looku
   assert.equal(get('panel').dataset.state,'speaking');
   get('stop-audio').onclick();assert.equal(get('panel').dataset.state,'ready');
 });
+// Verify permission denial, retry, no-result and typed recovery.
 test('00007 synthetic UI: permission denial, retry, no-result and typed recovery',()=>{
   get('talk').onclick();activeRecognition.onerror({error:'not-allowed'});activeRecognition.onend();
   assert.match(get('voice-description').textContent,/blocked.*site settings/);
@@ -64,20 +94,24 @@ test('00007 synthetic UI: permission denial, retry, no-result and typed recovery
   assert.match(allText(get('result-area')),/No matching address/);assert.equal(get('address').value,'999 EXAMPLE ST');
   get('address').value='100 EXAMPLE ST';get('search-form').onsubmit({preventDefault(){}});assert.match(allText(get('result-area')),/\$123,456/);
 });
+// Verify bad import preserves working data and source markup stays text.
 test('00007 synthetic UI: bad import preserves working data and source markup stays text',async()=>{
   await importFile('wrong,columns\n1,2');assert.match(get('notice').textContent,/previous dataset is still connected/);
   get('address').value='100 EXAMPLE ST';get('search-form').onsubmit({preventDefault(){}});assert.match(allText(get('result-area')),/\$123,456/);
   await importFile('street,city,state,postal_code,property_value\n1 <script>example</script>,EXAMPLE CITY,Texas,00000,100');
   get('address').value='1 <script>example</script>';get('search-form').onsubmit({preventDefault(){}});assert.match(allText(get('result-area')),/<script>example<\/script>/);
 });
+// Verify conflicting import never speaks a chosen valuation.
 test('00007 synthetic UI: conflicting import never speaks a chosen valuation',async()=>{
   await importFile(csv+'100 EXAMPLE ST,EXAMPLE CITY,Texas,00000,200000\n');
   get('address').value='100 EXAMPLE ST';get('search-form').onsubmit({preventDefault(){}});
   assert.match(allText(get('result-area')),/conflicting valuations/);assert.doesNotMatch(allText(get('result-area')),/IMPORTED PROPERTY VALUATION/);
 });
+// Verify fuzzy voice clarification, confirmation, reset and rejected-match correction.
 test('00009 synthetic UI: fuzzy voice clarification, confirmation, reset and rejected-match correction',async()=>{
   await importFile('street,city,state,postal_code,property_value\n50 SMITH AVE,EXAMPLE CITY,TX,00000,400\n50 SMITH AVE,OTHER EXAMPLE,TX,00001,450\n');
   get('speak-toggle').checked=true;
+  // Submit a clarification through the same form handler as typed user input.
   const submit=value=>{get('address').value=value;get('search-form').onsubmit({preventDefault(){}});};
   submit('50 Smyth Avenue');assert.match(allText(get('result-area')),/ZIP code/);assert.doesNotMatch(allText(get('result-area')),/\$400/);
   get('talk').onclick();
@@ -91,6 +125,7 @@ test('00009 synthetic UI: fuzzy voice clarification, confirmation, reset and rej
   submit('the ZIP is 00001');assert.match(allText(get('result-area')),/Did you mean/);
   submit('yes');assert.match(allText(get('result-area')),/\$450/);
 });
+// Verify failed published load offers retry and preserves input.
 test('00011 synthetic UI: failed published load offers retry and preserves input',async()=>{
   let attempts=0;globalThis.fetch=async()=>++attempts===1?{ok:false,status:503}:{ok:true,text:async()=>csv};
   await import('../dist/app.mjs?published-retry');await new Promise(setImmediate);
@@ -99,6 +134,7 @@ test('00011 synthetic UI: failed published load offers retry and preserves input
   assert.equal(attempts,2);assert.equal(get('retry-data').hidden,true);assert.equal(get('address').value,'100 Example Street');
   get('search-form').onsubmit({preventDefault(){}});assert.match(allText(get('result-area')),/\$123,456/);
 });
+// Verify late published response cannot replace a newer imported dataset.
 test('00011 synthetic UI: late published response cannot replace a newer imported dataset',async()=>{
   let resolveFetch;globalThis.fetch=()=>new Promise(resolve=>{resolveFetch=resolve;});
   await import('../dist/app.mjs?published-race');
@@ -108,6 +144,7 @@ test('00011 synthetic UI: late published response cannot replace a newer importe
   get('search-form').onsubmit({preventDefault(){}});assert.match(allText(get('result-area')),/\$200/);
   globalThis.fetch=async()=>({ok:true,text:async()=>csv});
 });
+// Verify unsupported recognition keeps typed lookup available.
 test('00007 synthetic UI: unsupported recognition keeps typed lookup available',async()=>{
   window.SpeechRecognition=undefined;
   await import('../dist/app.mjs?unsupported-speech-test');

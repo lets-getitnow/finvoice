@@ -1,5 +1,20 @@
+/**
+ * Mint a five-minute room-scoped LiveKit browser JWT after platform identity and
+ * same-origin checks. Secrets remain in the server environment; responses are not cached.
+ */
+/**
+ * Convert a string or signature bytes to unpadded base64url for JWT segments.
+ */
 const encode = value => btoa(typeof value === 'string' ? value : String.fromCharCode(...value)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+/**
+ * Return no-store JSON with the requested HTTP status.
+ */
 const json = (body, status=200) => new Response(JSON.stringify(body), {status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+/**
+ * Validate POST, identity, origin/fetch-site and wss configuration. Sign HS256 credentials for a
+ * fresh two-participant room with microphone-only publication and named worker dispatch; never
+ * grant room administration.
+ */
 export async function session(request, env) {
   if (request.method !== 'POST') return json({error:'Method not allowed'},405);
   if (!request.headers.get('oai-authenticated-user-id')) return json({error:'Sign in to use voice.'},401);

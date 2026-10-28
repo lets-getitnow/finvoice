@@ -1,4 +1,14 @@
+/**
+ * Server-side replay of bounded utterance history over a source adapter.
+ * The adapter loads house groups and optional street recommendations; values stay
+ * server-side until the calling endpoint projects an authorized result.
+ */
 import {AddressConversation} from '../dist/resolver.mjs';
+/**
+ * Union source-backed candidates across address turns, replay a fresh prefix-enabled
+ * conversation and return its result plus hasMore/rejected metadata. requireConfirmation demotes
+ * implicit exact results during replay; explicit choices still confirm.
+ */
 export async function resolveAddress(history,source,{requireConfirmation=false}={}){
   const pool=new Map();let house='',name='';const parser=new AddressConversation([]);
   for(const q of history){

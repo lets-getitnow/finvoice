@@ -1,14 +1,36 @@
+/**
+ * Read the generated Worker-only SERVER_DATA constant; no CSV or source groups
+ * are served directly to the browser. Caches are small insertion-ordered isolate-local
+ * maps, not persistent stores. Build-time data must come from the fingerprint-pinned export.
+ */
 import {streetNameScore} from '../dist/resolver.mjs';
 import {normalize} from '../dist/lookup.mjs';
+/**
+ * Keep at most eight decoded house groups; cache hits do not refresh eviction order.
+ */
 const houseCache=new Map();
+/**
+ * Keep at most sixteen fuzzy street-name searches; exact index hits bypass this cache.
+ */
 const streetMatchCache=new Map();
+/**
+ * Return source name, aggregate stats and approved source hash without returning records or
+ * encoded groups.
+ */
 export function serverInfo(){return {name:'Company property records',stats:SERVER_DATA.stats,sourceHash:SERVER_DATA.sourceHash};}
+/**
+ * Decode base64 gzip tuples into normalized records; absent groups return empty.
+ * Decompression/JSON errors propagate to the endpoint.
+ */
 export async function decodeHouse(encoded){
  if(!encoded)return [];
  const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
  const text=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
  return JSON.parse(text).map(([id,street,city,state,postal_code,values])=>({id,street,city,state,postal_code,values,streetKey:normalize(street),cityKey:normalize(city),zipKey:normalize(postal_code)}));
 }
+/**
+ * Load a house group from the generated constant, reusing the bounded decoded cache.
+ */
 export async function loadHouse(house){
  if(houseCache.has(house))return houseCache.get(house);
  const records=await decodeHouse(SERVER_DATA.groups[house]);
@@ -16,6 +38,10 @@ export async function loadHouse(house){
  houseCache.set(house,records);return records;
 }
 
+/**
+ * Return at most 24 indexed candidate IDs for a 2–80-character normalized name and optional
+ * house prefix. Rank fuzzy names, then decode only the selected house groups.
+ */
 export async function recommendRecords({house='',name=''}){
  if(!name||name.length<2||name.length>80)return [];
  let names;

@@ -18,7 +18,9 @@ Never state a property value or confirm a property yourself. The server tool cho
 question or verified response; only that output will be spoken. No free-text answer is used.'''
 
 class AddressToolAgent:
+    """Require one model-selected call per ordered server-authoritative tool phase; only returned server speech is eligible for playback."""
     def __init__(self, invoke, emit, model=None):
+        """Inject async tool invocation and event emission; default to the configured deterministic LiveKit-hosted model and empty committed context."""
         self.invoke, self.emit = invoke, emit
         self.model = model or inference.LLM('openai/gpt-4.1-mini', extra_kwargs={'temperature':0,'max_completion_tokens':250})
         self.context = {}
@@ -41,6 +43,7 @@ class AddressToolAgent:
         return await self._invoke('choose_clarification', {'preferred_detail':preferred_detail})
 
     async def _invoke(self, name, arguments):
+        """Emit started/completed or failed tool events around browser RPC; attach the actual utterance independently of model arguments."""
         logger.info('address tool call',extra={'tool':name,'turn':self.turn,'status':'started'})
         await self.emit({'type':'tool_event','id':self.turn,'name':name,'status':'started'})
         try:
@@ -53,6 +56,7 @@ class AddressToolAgent:
         return result
 
     async def resolve(self, turn, utterance):
+        """Force apply/find/choose sequentially with no model retries and a 15-second timeout per phase. Validate one correctly named call, execute its arguments and feed its output into the next phase."""
         self.turn,self.utterance=turn,utterance
         chat=llm.ChatContext()
         chat.add_message(role='system',content=SYSTEM)
@@ -74,7 +78,9 @@ class AddressToolAgent:
         return result
 
     def commit(self, result):
+        """Retain returned context for the next user turn only after the caller accepts this result."""
         self.context=result.get('context',{})
 
     async def aclose(self):
+        """Close the owned model client when the room session ends."""
         await self.model.aclose()

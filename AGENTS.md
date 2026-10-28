@@ -13,6 +13,7 @@
 - Follow the user's requested scope. Propose materially broader work before starting it.
 - Solve the root cause and complete one coherent problem at a time.
 - Prefer simple, explicit solutions over clever or premature abstractions.
+- All code must be clearly documented in the source. Treat inline documentation as part of implementation and completion, not optional follow-up work.
 - Preserve existing behavior unless the requested change requires otherwise.
 - Never expose secrets, credentials, personal data, or other sensitive information.
 - Commit completed changes when the repository workflow or user requires it, and report the commit identifier.
@@ -32,8 +33,19 @@
 - Keep domain states and serialized contract values centrally defined and validated at boundaries.
 - Handle expected states explicitly. Do not silently swallow failures or invent fallback behavior that hides invalid state.
 - Use environment variables for deployment-specific configuration and secrets, not as an undocumented substitute for application design.
-- Update nearby comments and documentation when behavior or assumptions change.
+- Follow the mandatory inline documentation requirements below for every code change.
 - Do not mix unrelated cleanup or refactoring into a focused change.
+
+## Inline Code Documentation (Required)
+
+- Document all code, including application logic, internal helpers, scripts, tests, migrations, and configuration logic. Every new or changed code unit must have clear documentation alongside its implementation. When touching existing undocumented code, document the affected units as part of the same change.
+- Give each module or script a concise explanation of its purpose and responsibilities. Document each function, method, class, and other logical unit with a nearby comment or the language's standard docstring/documentation format, including private helpers.
+- Explain what the unit does and why it exists. Describe inputs, outputs, important constraints, failure behavior, and side effects where applicable. Include units, formats, defaults, state changes, and external interactions when they matter to correct use.
+- Place inline comments immediately beside non-obvious logic. Explain business rules, invariants, boundary cases, algorithms, ordering requirements, concurrency, performance constraints, and workarounds well enough that a reader can safely change the code.
+- Use short, plain, precise sentences and concrete domain terms. Explain intent and reasoning; do not merely paraphrase syntax or add a comment to every obvious assignment. Keep simple units' documentation brief while still stating their purpose.
+- Keep documentation accurate in the same change as the code. Update or remove stale comments whenever behavior, contracts, or assumptions change. Never describe intended behavior as though it were implemented.
+- README files, specifications, external documents, descriptive names, and tests supplement inline documentation; they do not replace it. Use references for deeper background while keeping the essential explanation in the source.
+- Before declaring a code change complete, review every added or changed unit for documentation coverage, clarity, and agreement with the implementation. Missing or misleading inline documentation is unfinished work, even when tests pass.
 
 ## Testing and Verification
 

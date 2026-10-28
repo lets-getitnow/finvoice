@@ -1,8 +1,17 @@
+/**
+ * Integration checks against a locally built Worker, not live deployment evidence.
+ * Requires the fingerprint-pinned company-data artifact; isolated synthetic tuples
+ * exercise lookup/decoding and synthetic credentials exercise token boundaries.
+ */
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 if(!globalThis.crypto)globalThis.crypto=webcrypto;
 const {default:worker}=await import('../sites-artifact/dist/server/index.js');
+/**
+ * Build same-origin Requests with optional JSON body and synthetic platform identity for Worker
+ * checks.
+ */
 const request=(path,body,owner)=>new Request('https://finvoice.test'+path,{method:body?'POST':'GET',headers:{...(body?{'Origin':'https://finvoice.test','Content-Type':'application/json'}:{}),...(owner?{'oai-authenticated-user-id':owner}:{})},body:body?JSON.stringify(body):undefined});
 assert.equal((await worker.fetch(request('/'),{})).status,200);
 assert.equal((await worker.fetch(request('/healthz'),{})).status,200);
@@ -17,6 +26,9 @@ assert.equal(info.records,undefined);assert.equal(info.groups,undefined);
 const {properties}=await import('./properties.mjs');
 const {decodeHouse}=await import('./server-data.mjs');
 const {gzipSync}=await import('node:zlib');
+/**
+ * Compressed synthetic record tuple used only with the injected test source.
+ */
 const fixture=gzipSync(JSON.stringify([[0,'123 Example Street','Fixture City','TX','75001',[123456]]])).toString('base64');
 const source={info:()=>({stats:{searchable:1}}),load:house=>decodeHouse(house==='123'?fixture:null)};
 for(const user of ['synthetic-owner','synthetic-second-visitor']){
@@ -31,6 +43,9 @@ assert.equal((await worker.fetch(request('/livekit-sdk.mjs'),{})).status,200);
 assert.equal((await worker.fetch(request('/api/voice/session',{},null),{})).status,401);
 assert.equal((await worker.fetch(request('/api/voice/session',{},'synthetic-owner'),{})).status,503);
 assert.equal((await worker.fetch(request('/api/voice/session',null,'synthetic-owner'),{})).status,405);
+/**
+ * Explicit synthetic signing inputs; these do not connect to LiveKit.
+ */
 const voiceEnv={LIVEKIT_URL:'wss://synthetic.example',LIVEKIT_API_KEY:'synthetic-test-key',LIVEKIT_API_SECRET:'synthetic-test-secret'};
 const minted=await worker.fetch(request('/api/voice/session',{},'synthetic-owner'),voiceEnv);
 assert.equal(minted.status,200);const details=await minted.json();

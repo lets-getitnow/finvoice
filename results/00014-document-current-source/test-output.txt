@@ -1,0 +1,38 @@
+✔ three-phase tools handle partial speech without leaking unconfirmed valuations (27.784574ms)
+✔ model cannot invent yes; withdrawal and unknown replies preserve safety (7.279638ms)
+✔ explicit confirmation permits source-backed valuation and keeps context (13.934034ms)
+✔ canonical repairs preserve house numbers and spoken number groups (0.443324ms)
+✔ broker enforces phase order and drops cancelled/old turns (2.373381ms)
+✔ tool API requires authenticated same-origin requests (0.44069ms)
+✔ phonetic spelling and fragmented numbers remain confirmation-only (1.813725ms)
+✔ a rejected candidate is not re-offered after an uncertain reply (2.572664ms)
+✔ cancelled in-flight tool response cannot overwrite conversation state (0.570691ms)
+✔ semantic tool hints remain unconfirmed and cannot replace a detail with a new address (3.221753ms)
+✔ model ordinal hint cannot manufacture confirmation for an uncertain actual reply (2.484075ms)
+✔ Mint 32 recommends a longer house number but never confirms it automatically (0.312561ms)
+✔ partial street shows bounded recommendations even without house number (0.249197ms)
+✔ default strict resolver never silently substitutes a different house number (0.263839ms)
+✔ explicit ZIP reply narrows street recommendations (0.245082ms)
+✔ unique exact actual address returns its source price immediately (1.306247ms)
+✔ explicit Enter submit control is present (1.306106ms)
+✔ prefix and phonetic suggestions still do not expose a valuation (1.947803ms)
+✔ a model-normalized spelling guess cannot become an automatic exact match (0.931654ms)
+✔ minimal page contains a text input, Enter submit and Speak control (0.177762ms)
+✔ LiveKit capture preserves interim/final text events without records (1.043009ms)
+✔ same button cancels connection or playback; sign-in errors remain recoverable (0.228377ms)
+✔ Enter invokes LiveKit resolve and a unique exact match displays its price (2.467991ms)
+✔ typing previews recommendations without speech and keeps context for a choice (302.157862ms)
+✔ query changes clear the price and zero-valued matches remain visible (1.575755ms)
+✔ conflicting source prices are shown as a conflict without a chosen headline price (1.223565ms)
+✔ 00013: address cards select through LiveKit tools and switch prices without another submit (304.053286ms)
+✔ 00013: removed cards and cancelled tool results cannot price a newer query (301.773826ms)
+✔ 00013: a failed selection is retryable and source conflicts never get a headline price (604.064791ms)
+✔ LiveKit RPC admits only current agent/turn, forwards tools and delivers result events (1.170166ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1612.958802
