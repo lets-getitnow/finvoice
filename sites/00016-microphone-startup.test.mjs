@@ -1,54 +1,306 @@
 // Synthetic browser/SDK timing only; no real microphone, network or source data.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {VoiceSession} from '../dist/voice-session.mjs';
-const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
-const tick=()=>new Promise(setImmediate);
-function harness({capture,load,connect,publish,startAudio}={}){
- const states=[],errors=[],rooms=[],order=[];
- class Room{constructor(){rooms.push(this);this.remoteParticipants=new Map([['agent',{identity:'synthetic-agent',kind:'agent',metadata:'{"finvoiceReady":true,"toolsVersion":1}'}]]);this.localParticipant={registerRpcMethod(){},performRpc:async()=>{order.push('control');},publishTrack:async track=>{order.push('publish');await publish?.(track);},unpublishTrack:async()=>{order.push('unpublish');}};}on(){return this;}async connect(){await connect?.();}async startAudio(){await startAudio?.();}async disconnect(){this.disconnected=true;}}
- const sdk={Room,RoomEvent:{},ParticipantKind:{AGENT:'agent'},Track:{Kind:{Audio:'audio'},Source:{Microphone:'microphone'}}};
- const session=new VoiceSession({captureAudio:()=>{order.push('capture');return capture?.()??Promise.resolve(stream());},loadSDK:async()=>{order.push('sdk');await load?.();return sdk;},request:async()=>({ok:true,json:async()=>({url:'wss://synthetic.example',token:'synthetic'})}),onState:s=>states.push(s),onError:e=>errors.push(e)});
- return {session,states,errors,rooms,order};
+import { VoiceSession } from '../dist/voice-session.mjs';
+/** Create a controllable promise so tests choose when permission or connection work completes. */
+const createDeferredPromise = () => {
+  let resolveDeferredPromise, rejectDeferredPromise;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolveDeferredPromise = resolvePromise;
+    rejectDeferredPromise = rejectPromise;
+  });
+  return {
+    promise,
+    resolve: resolveDeferredPromise,
+    reject: rejectDeferredPromise,
+  };
+};
+/** Drain queued callbacks before checking asynchronous lifecycle state. */
+const waitForCallbacks = () => new Promise(setImmediate);
+/** Inject synthetic capture, room and publication operations; record states/errors/order without real audio or network. */
+function createVoiceTestHarness({ capture, load, connect, publish, startAudio } = {}) {
+  const capturedStates = [],
+    capturedErrors = [],
+    createdRooms = [],
+    operationOrder = [];
+  /** Synthetic LiveKit room records control/publication order and delegates delayed operations to test hooks. */
+  class Room {
+    constructor() {
+      createdRooms.push(this);
+      this.remoteParticipants = new Map([
+        [
+          'agent',
+          {
+            identity: 'synthetic-agent',
+            kind: 'agent',
+            metadata: '{"finvoiceReady":true,"toolsVersion":1}',
+          },
+        ],
+      ]);
+      this.localParticipant = {
+        registerRpcMethod() {},
+        performRpc: async () => {
+          operationOrder.push('control');
+        },
+        publishTrack: async (microphoneTrack) => {
+          operationOrder.push('publish');
+          await publish?.(microphoneTrack);
+        },
+        unpublishTrack: async () => {
+          operationOrder.push('unpublish');
+        },
+      };
+    }
+    on() {
+      return this;
+    }
+    async connect() {
+      await connect?.();
+    }
+    async startAudio() {
+      await startAudio?.();
+    }
+    async disconnect() {
+      this.disconnected = true;
+    }
+  }
+  const livekitSdk = {
+    Room,
+    RoomEvent: {},
+    ParticipantKind: {
+      AGENT: 'agent',
+    },
+    Track: {
+      Kind: {
+        Audio: 'audio',
+      },
+      Source: {
+        Microphone: 'microphone',
+      },
+    },
+  };
+  const voiceSession = new VoiceSession({
+    captureAudio: () => {
+      operationOrder.push('capture');
+      return capture?.() ?? Promise.resolve(createSyntheticAudioStream());
+    },
+    loadSDK: async () => {
+      operationOrder.push('sdk');
+      await load?.();
+      return livekitSdk;
+    },
+    request: async () => ({
+      ok: true,
+      json: async () => ({
+        url: 'wss://synthetic.example',
+        token: 'synthetic',
+      }),
+    }),
+    onState: (stateName) => capturedStates.push(stateName),
+    onError: (errorMessage) => capturedErrors.push(errorMessage),
+  });
+  return {
+    session: voiceSession,
+    states: capturedStates,
+    errors: capturedErrors,
+    rooms: createdRooms,
+    order: operationOrder,
+  };
 }
-function stream(){const track={enabled:true,stopped:false,stop(){this.stopped=true;},getConstraints(){return {};}};return {track,getAudioTracks:()=>[track],getTracks:()=>[track]};}
-test('00016: cold start requests microphone before SDK/network and publishes after readiness',async()=>{
- const permission=deferred(),sdk=deferred(),s=stream(),h=harness({capture:()=>permission.promise,load:()=>sdk.promise});
- const listening=h.session.listen();assert.equal(h.order[0],'capture');permission.resolve(s);await tick();assert.equal(s.track.enabled,false);assert.equal(h.order.includes('publish'),false);
- sdk.resolve();await listening;assert.equal(h.session.listening,true);assert.equal(s.track.enabled,true);assert.ok(h.order.indexOf('control')<h.order.indexOf('publish'));await h.session.disconnect();assert.equal(s.track.stopped,true);
+/** Return one owned synthetic microphone track and a stream whose stop state is observable. */
+function createSyntheticAudioStream() {
+  const microphoneTrack = {
+    enabled: true,
+    stopped: false,
+    stop() {
+      this.stopped = true;
+    },
+    getConstraints() {
+      return {};
+    },
+  };
+  return {
+    track: microphoneTrack,
+    getAudioTracks: () => [microphoneTrack],
+    getTracks: () => [microphoneTrack],
+  };
+}
+test('00016: cold start requests microphone before SDK/network and publishes after readiness', async () => {
+  const permission = createDeferredPromise(),
+    livekitSdk = createDeferredPromise(),
+    microphoneStream = createSyntheticAudioStream(),
+    testHarness = createVoiceTestHarness({
+      capture: () => permission.promise,
+      load: () => livekitSdk.promise,
+    });
+  const listening = testHarness.session.listen();
+  assert.equal(testHarness.order[0], 'capture');
+  permission.resolve(microphoneStream);
+  await waitForCallbacks();
+  assert.equal(microphoneStream.track.enabled, false);
+  assert.equal(testHarness.order.includes('publish'), false);
+  livekitSdk.resolve();
+  await listening;
+  assert.equal(testHarness.session.listening, true);
+  assert.equal(microphoneStream.track.enabled, true);
+  assert.ok(testHarness.order.indexOf('control') < testHarness.order.indexOf('publish'));
+  await testHarness.session.disconnect();
+  assert.equal(microphoneStream.track.stopped, true);
 });
-test('00016: cancelled permission grants cannot stop or overwrite a retry',async()=>{
- const old=deferred(),newer=deferred(),a=stream(),b=stream();let calls=0;
- const h=harness({capture:()=>++calls===1?old.promise:newer.promise});const first=h.session.listen();h.session.stop();const second=h.session.listen();newer.resolve(b);await second;old.resolve(a);await first;
- assert.equal(a.track.stopped,true);assert.equal(b.track.stopped,false);assert.equal(h.session.mic,b.track);assert.equal(h.states.at(-1),'listening');assert.deepEqual(h.errors,[]);await h.session.disconnect();
+test('00016: cancelled permission grants cannot stop or overwrite a retry', async () => {
+  const previousDeferredOperation = createDeferredPromise(),
+    retryDeferredOperation = createDeferredPromise(),
+    firstStream = createSyntheticAudioStream(),
+    retryStream = createSyntheticAudioStream();
+  let captureCallCount = 0;
+  const testHarness = createVoiceTestHarness({
+    capture: () =>
+      ++captureCallCount === 1 ? previousDeferredOperation.promise : retryDeferredOperation.promise,
+  });
+  const first = testHarness.session.listen();
+  testHarness.session.stop();
+  const second = testHarness.session.listen();
+  retryDeferredOperation.resolve(retryStream);
+  await second;
+  previousDeferredOperation.resolve(firstStream);
+  await first;
+  assert.equal(firstStream.track.stopped, true);
+  assert.equal(retryStream.track.stopped, false);
+  assert.equal(testHarness.session.mic, retryStream.track);
+  assert.equal(testHarness.states.at(-1), 'listening');
+  assert.deepEqual(testHarness.errors, []);
+  await testHarness.session.disconnect();
 });
-test('00016: cancellation during publication cleans up the original room only',async()=>{
- const publishing=deferred(),s=stream(),h=harness({capture:()=>Promise.resolve(s),publish:()=>publishing.promise});
- const listening=h.session.listen();await tick();h.session.stop();publishing.resolve();await listening;assert.equal(s.track.stopped,true);assert.equal(h.session.listening,false);assert.notEqual(h.states.at(-1),'listening');await h.session.disconnect();
+test('00016: cancellation during publication cleans up the original room only', async () => {
+  const publishing = createDeferredPromise(),
+    microphoneStream = createSyntheticAudioStream(),
+    testHarness = createVoiceTestHarness({
+      capture: () => Promise.resolve(microphoneStream),
+      publish: () => publishing.promise,
+    });
+  const listening = testHarness.session.listen();
+  await waitForCallbacks();
+  testHarness.session.stop();
+  publishing.resolve();
+  await listening;
+  assert.equal(microphoneStream.track.stopped, true);
+  assert.equal(testHarness.session.listening, false);
+  assert.notEqual(testHarness.states.at(-1), 'listening');
+  await testHarness.session.disconnect();
 });
-test('00016: playback denial does not become microphone denial or block capture',async()=>{
- const h=harness({startAudio:async()=>{throw Object.assign(new Error('synthetic playback'),{name:'NotAllowedError'});}});await h.session.listen();assert.equal(h.session.listening,true);assert.deepEqual(h.errors,[]);await h.session.disconnect();
+test('00016: playback denial does not become microphone denial or block capture', async () => {
+  const testHarness = createVoiceTestHarness({
+    startAudio: async () => {
+      throw Object.assign(new Error('synthetic playback'), {
+        name: 'NotAllowedError',
+      });
+    },
+  });
+  await testHarness.session.listen();
+  assert.equal(testHarness.session.listening, true);
+  assert.deepEqual(testHarness.errors, []);
+  await testHarness.session.disconnect();
 });
-test('00016: microphone denial is accurate and retryable; provider errors stay sanitized',async()=>{
- let denied=true;const h=harness({capture:()=>denied?Promise.reject(Object.assign(new Error('synthetic secret'),{name:'NotAllowedError'})):Promise.resolve(stream())});
- await h.session.listen();assert.match(h.errors[0],/Microphone.*site settings/);assert.doesNotMatch(h.errors[0],/synthetic secret/);denied=false;await h.session.listen();assert.equal(h.session.listening,true);await h.session.disconnect();
- assert.doesNotMatch(h.session.errorText(Object.assign(new Error('secret'),{name:'NotAllowedError'})),/Microphone access was blocked|secret/);
+test('00016: microphone denial is accurate and retryable; provider errors stay sanitized', async () => {
+  let denied = true;
+  const testHarness = createVoiceTestHarness({
+    capture: () =>
+      denied
+        ? Promise.reject(
+            Object.assign(new Error('synthetic secret'), {
+              name: 'NotAllowedError',
+            }),
+          )
+        : Promise.resolve(createSyntheticAudioStream()),
+  });
+  await testHarness.session.listen();
+  assert.match(testHarness.errors[0], /Microphone.*site settings/);
+  assert.doesNotMatch(testHarness.errors[0], /synthetic secret/);
+  denied = false;
+  await testHarness.session.listen();
+  assert.equal(testHarness.session.listening, true);
+  await testHarness.session.disconnect();
+  assert.doesNotMatch(
+    testHarness.session.errorText(
+      Object.assign(new Error('secret'), {
+        name: 'NotAllowedError',
+      }),
+    ),
+    /Microphone access was blocked|secret/,
+  );
 });
-test('00016: cancelled SDK loading cannot install a stale room over a new connection',async()=>{
- const old=deferred();let loads=0;const h=harness({load:()=>++loads===1?old.promise:Promise.resolve()});
- const first=h.session.ensureConnected().catch(()=>{});await h.session.disconnect();await h.session.ensureConnected();const current=h.session.room;old.resolve();await first;assert.equal(h.session.room,current);assert.equal(h.rooms.length,1);await h.session.disconnect();
+test('00016: cancelled SDK loading cannot install a stale room over a new connection', async () => {
+  const previousDeferredOperation = createDeferredPromise();
+  let loads = 0;
+  const testHarness = createVoiceTestHarness({
+    load: () => (++loads === 1 ? previousDeferredOperation.promise : Promise.resolve()),
+  });
+  const first = testHarness.session.ensureConnected().catch(() => {});
+  await testHarness.session.disconnect();
+  await testHarness.session.ensureConnected();
+  const current = testHarness.session.room;
+  previousDeferredOperation.resolve();
+  await first;
+  assert.equal(testHarness.session.room, current);
+  assert.equal(testHarness.rooms.length, 1);
+  await testHarness.session.disconnect();
 });
-test('00016: old connection finalization cannot clear a newer pending connection',async()=>{
- const old=deferred(),newer=deferred();let loads=0;const h=harness({load:()=>++loads===1?old.promise:newer.promise});
- const first=h.session.ensureConnected().catch(()=>{});await h.session.disconnect();const second=h.session.ensureConnected();const pending=h.session.connecting;
- old.resolve();await first;assert.equal(h.session.connecting,pending);newer.resolve();await second;await h.session.disconnect();
+test('00016: old connection finalization cannot clear a newer pending connection', async () => {
+  const previousDeferredOperation = createDeferredPromise(),
+    retryDeferredOperation = createDeferredPromise();
+  let loads = 0;
+  const testHarness = createVoiceTestHarness({
+    load: () =>
+      ++loads === 1 ? previousDeferredOperation.promise : retryDeferredOperation.promise,
+  });
+  const first = testHarness.session.ensureConnected().catch(() => {});
+  await testHarness.session.disconnect();
+  const second = testHarness.session.ensureConnected();
+  const pending = testHarness.session.connecting;
+  previousDeferredOperation.resolve();
+  await first;
+  assert.equal(testHarness.session.connecting, pending);
+  retryDeferredOperation.resolve();
+  await second;
+  await testHarness.session.disconnect();
 });
-test('00016: connection failure stops already granted capture and a retry works',async()=>{
- const s=stream();let failed=true;const h=harness({capture:()=>Promise.resolve(s),connect:async()=>{if(failed)throw new Error('synthetic provider secret');}});
- await h.session.listen();assert.equal(s.track.stopped,true);assert.equal(h.session.capture,null);assert.equal(h.session.mic,null);assert.doesNotMatch(h.errors[0],/synthetic provider secret|Microphone access was blocked/);
- failed=false;h.session.captureAudio=()=>Promise.resolve(stream());await h.session.listen();assert.equal(h.session.listening,true);await h.session.disconnect();
+test('00016: connection failure stops already granted capture and a retry works', async () => {
+  const microphoneStream = createSyntheticAudioStream();
+  let failed = true;
+  const testHarness = createVoiceTestHarness({
+    capture: () => Promise.resolve(microphoneStream),
+    connect: async () => {
+      if (failed) throw new Error('synthetic provider secret');
+    },
+  });
+  await testHarness.session.listen();
+  assert.equal(microphoneStream.track.stopped, true);
+  assert.equal(testHarness.session.capture, null);
+  assert.equal(testHarness.session.mic, null);
+  assert.doesNotMatch(
+    testHarness.errors[0],
+    /synthetic provider secret|Microphone access was blocked/,
+  );
+  failed = false;
+  testHarness.session.captureAudio = () => Promise.resolve(createSyntheticAudioStream());
+  await testHarness.session.listen();
+  assert.equal(testHarness.session.listening, true);
+  await testHarness.session.disconnect();
 });
-test('00016: playback denial leaves typed resolution usable without requesting microphone',async()=>{
- const h=harness({capture:()=>{throw new Error('typed must not capture');},startAudio:async()=>{throw Object.assign(new Error('synthetic'),{name:'NotAllowedError'});}});
- await h.session.resolve('synthetic address');assert.equal(h.states.at(-1),'processing');assert.deepEqual(h.errors,[]);assert.equal(h.order.includes('capture'),false);await h.session.disconnect();
+test('00016: playback denial leaves typed resolution usable without requesting microphone', async () => {
+  const testHarness = createVoiceTestHarness({
+    capture: () => {
+      throw new Error('typed must not capture');
+    },
+    startAudio: async () => {
+      throw Object.assign(new Error('synthetic'), {
+        name: 'NotAllowedError',
+      });
+    },
+  });
+  await testHarness.session.resolve('synthetic address');
+  assert.equal(testHarness.states.at(-1), 'processing');
+  assert.deepEqual(testHarness.errors, []);
+  assert.equal(testHarness.order.includes('capture'), false);
+  await testHarness.session.disconnect();
 });

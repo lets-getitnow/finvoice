@@ -78,6 +78,7 @@ This index is a map to the decisions, not a replacement for their requirements. 
 | [00015: Spoken evidence](00015-spoken-address-evidence.md) | Preserve supplied numbers/addresses when model hints disagree. | Matching safeguards remain; this does not change capture infrastructure. |
 | [00016: Microphone startup](00016-microphone-startup.md) | Request capture directly from Speak and handle cancellation reliably. | This changes browser capture timing, not property data or worker deployment. |
 | [00017: Clear specifications](00017-clear-specifications.md) | Require standalone context and plain language; revise existing specs. | An explicitly authorized editorial change, preserving product requirements. |
+| [00018: Readable code](00018-readable-code.md) | Require intentional descriptive names and refactor dense source without changing behavior. | Extends source documentation; public contracts and runtime safeguards continue. |
 
 ## Terms used in this repository
 

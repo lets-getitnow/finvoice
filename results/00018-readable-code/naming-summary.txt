@@ -1,0 +1,27 @@
+dist/address-tools.mjs: 10 renamed lexical bindings
+dist/app.mjs: 46 renamed lexical bindings
+dist/bootstrap.mjs: 0 renamed lexical bindings
+dist/lookup.mjs: 48 renamed lexical bindings
+dist/resolver.mjs: 95 renamed lexical bindings
+dist/voice-session.mjs: 33 renamed lexical bindings
+sites/00015-spoken-address.test.mjs: 21 renamed lexical bindings
+sites/00016-microphone-startup.test.mjs: 39 renamed lexical bindings
+sites/address-resolver.mjs: 10 renamed lexical bindings
+sites/address-tools.mjs: 72 renamed lexical bindings
+sites/address-tools.test.mjs: 20 renamed lexical bindings
+sites/build.mjs: 18 renamed lexical bindings
+sites/check.mjs: 15 renamed lexical bindings
+sites/disambiguation.test.mjs: 7 renamed lexical bindings
+sites/match-price.test.mjs: 7 renamed lexical bindings
+sites/model-probe-broker.mjs: 4 renamed lexical bindings
+sites/properties.mjs: 10 renamed lexical bindings
+sites/server-data.mjs: 22 renamed lexical bindings
+sites/session.mjs: 15 renamed lexical bindings
+sites/start-talking.test.mjs: 26 renamed lexical bindings
+sites/tool-fixture.mjs: 7 renamed lexical bindings
+sites/voice-rpc.test.mjs: 5 renamed lexical bindings
+tests/00007-browser-state.test.mjs: 8 renamed lexical bindings
+tests/00007-lookup.test.mjs: 0 renamed lexical bindings
+tests/00009-address-recovery.test.mjs: 21 renamed lexical bindings
+tests/00009-search-session.test.mjs: 8 renamed lexical bindings
+Total renamed JavaScript lexical bindings: 567

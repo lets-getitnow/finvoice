@@ -3,52 +3,158 @@
  * private CSV. This script reads the source fingerprint before embedding data, writes
  * only sites-artifact, and must never substitute fixtures for missing company data.
  */
-import {gzipSync} from 'node:zlib';
-import {createHash} from 'node:crypto';
-import {parseCSV} from '../dist/lookup.mjs';
-import {AddressConversation} from '../dist/resolver.mjs';
-import {readFile,readdir,mkdir,writeFile,copyFile,cp} from 'node:fs/promises';
+import { gzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
+import { parseCSV } from '../dist/lookup.mjs';
+import { AddressConversation } from '../dist/resolver.mjs';
+import { readFile, readdir, mkdir, writeFile, copyFile, cp } from 'node:fs/promises';
 /**
  * Asset allowlist: bundle only supported static formats from the top level of dist.
  */
-const types={'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
-const assets={};
-for(const name of await readdir('dist')) {
- const extension=name.slice(name.lastIndexOf('.'));
- if(types[extension]) assets['/'+name]={type:types[extension],body:await readFile('dist/'+name,'utf8')};
+const assetContentTypes = {
+  '.html': 'text/html; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+};
+const staticAssets = {};
+for (const assetFileName of await readdir('dist')) {
+  const fileExtension = assetFileName.slice(assetFileName.lastIndexOf('.'));
+  if (assetContentTypes[fileExtension])
+    staticAssets['/' + assetFileName] = {
+      type: assetContentTypes[fileExtension],
+      body: await readFile('dist/' + assetFileName, 'utf8'),
+    };
 }
 
 /**
  * Load the authorized local export; a missing file or fingerprint mismatch aborts the build.
  */
-const csv=await readFile('private-data/properties.csv','utf8');
-const expected=JSON.parse(await readFile('.openai/property-source.json','utf8'));
-if(createHash('sha256').update(csv).digest('hex')!==expected.sha256)throw new Error('Server CSV does not match the approved source fingerprint.');
-const dataset=parseCSV(csv);
+const companyCsvText = await readFile('private-data/properties.csv', 'utf8');
+const approvedSourceMetadata = JSON.parse(await readFile('.openai/property-source.json', 'utf8'));
+if (createHash('sha256').update(companyCsvText).digest('hex') !== approvedSourceMetadata.sha256)
+  throw new Error('Server CSV does not match the approved source fingerprint.');
+const propertyDataset = parseCSV(companyCsvText);
 /**
  * Partition source tuples by normalized house number to limit request-time decoding.
  */
-const grouped=new Map();
-for(const r of dataset.records){const house=r.streetKey.split(' ')[0];if(!grouped.has(house))grouped.set(house,[]);grouped.get(house).push([r.id,r.street,r.city,r.state,r.postal_code,r.values]);}
-const groups=Object.fromEntries([...grouped].map(([house,records])=>[house,gzipSync(JSON.stringify(records)).toString('base64')]));
+const recordsByHouseNumber = new Map();
+for (const propertyRecord of propertyDataset.records) {
+  const houseNumber = propertyRecord.streetKey.split(' ')[0];
+  if (!recordsByHouseNumber.has(houseNumber)) recordsByHouseNumber.set(houseNumber, []);
+  recordsByHouseNumber
+    .get(houseNumber)
+    .push([
+      propertyRecord.id,
+      propertyRecord.street,
+      propertyRecord.city,
+      propertyRecord.state,
+      propertyRecord.postal_code,
+      propertyRecord.values,
+    ]);
+}
+const compressedHouseGroups = Object.fromEntries(
+  [...recordsByHouseNumber].map(([houseNumber, records]) => [
+    houseNumber,
+    gzipSync(JSON.stringify(records)).toString('base64'),
+  ]),
+);
 /**
  * Index parsed street names to house/record IDs for bounded recommendations.
  */
-const streetGroups=Object.create(null);const parser=new AddressConversation([]);
-for(const r of dataset.records){const name=parser.parse(r.street,'source',[r.cityKey].filter(Boolean)).name;if(!name)continue;(streetGroups[name]??=[]).push([r.streetKey.split(' ')[0],r.id]);}
-const serverData={streetGroups,stats:dataset.stats,sourceHash:createHash('sha256').update(csv).digest('hex'),groups};
-console.log(JSON.stringify({serverDatasetRows:dataset.stats.sourceRows,searchable:dataset.stats.searchable,houseGroups:grouped.size,largestHouseGroup:Math.max(...[...grouped.values()].map(x=>x.length))}));
+const streetGroups = Object.create(null);
+const addressParser = new AddressConversation([]);
+for (const propertyRecord of propertyDataset.records) {
+  const streetName = addressParser.parse(
+    propertyRecord.street,
+    'source',
+    [propertyRecord.cityKey].filter(Boolean),
+  ).name;
+  if (!streetName) continue;
+  (streetGroups[streetName] ??= []).push([
+    propertyRecord.streetKey.split(' ')[0],
+    propertyRecord.id,
+  ]);
+}
+const embeddedServerData = {
+  streetGroups,
+  stats: propertyDataset.stats,
+  sourceHash: createHash('sha256').update(companyCsvText).digest('hex'),
+  groups: compressedHouseGroups,
+};
+console.log(
+  JSON.stringify({
+    serverDatasetRows: propertyDataset.stats.sourceRows,
+    searchable: propertyDataset.stats.searchable,
+    houseGroups: recordsByHouseNumber.size,
+    largestHouseGroup: Math.max(
+      ...[...recordsByHouseNumber.values()].map((houseRecords) => houseRecords.length),
+    ),
+  }),
+);
 /**
  * Concatenate modules into one Worker scope, stripping imports already represented by the
  * included source. Preserve declaration names and order when editing these modules.
  */
-const source=(await readFile('dist/lookup.mjs','utf8'))+'\n'+(await readFile('dist/resolver.mjs','utf8')).replace(/^import .*;$/m,'')+'\n'+(await readFile('sites/server-data.mjs','utf8')).replace(/^import .*;$/gm,'')+'\n'+(await readFile('sites/address-resolver.mjs','utf8')).replace(/^import .*;$/gm,'')+'\n'+(await readFile('sites/address-tools.mjs','utf8')).replace(/^import .*;$/gm,'')+'\n'+(await readFile('sites/properties.mjs','utf8')).replace(/^import .*;$/gm,'')+'\n'+(await readFile('sites/session.mjs','utf8'));
-await mkdir('sites-artifact/dist/server',{recursive:true}); await mkdir('sites-artifact/.openai',{recursive:true});
+const combinedWorkerSource =
+  (await readFile('dist/lookup.mjs', 'utf8')) +
+  '\n' +
+  (await readFile('dist/resolver.mjs', 'utf8')).replace(/^import .*;$/m, '') +
+  '\n' +
+  (await readFile('sites/server-data.mjs', 'utf8')).replace(/^import .*;$/gm, '') +
+  '\n' +
+  (await readFile('sites/address-resolver.mjs', 'utf8')).replace(/^import .*;$/gm, '') +
+  '\n' +
+  (await readFile('sites/address-tools.mjs', 'utf8')).replace(/^import .*;$/gm, '') +
+  '\n' +
+  (await readFile('sites/properties.mjs', 'utf8')).replace(/^import .*;$/gm, '') +
+  '\n' +
+  (await readFile('sites/session.mjs', 'utf8'));
+await mkdir('sites-artifact/dist/server', {
+  recursive: true,
+});
+await mkdir('sites-artifact/.openai', {
+  recursive: true,
+});
 /**
  * Emit server-only data, static assets and routing. The generated fetch handler exposes
  * APIs/health and GET/HEAD assets, never arbitrary filesystem paths or private CSV files.
  */
-await writeFile('sites-artifact/dist/server/index.js',source+'\nconst SERVER_DATA='+JSON.stringify(serverData)+';\nconst assets='+JSON.stringify(assets)+';\nexport default {async fetch(request,env){const path=new URL(request.url).pathname;if(path==="/api/address/tools")return addressTools(request,env);if(path==="/api/voice/session")return session(request,env);if(path.startsWith("/api/"))return properties(request,env);if(path==="/healthz")return new Response("ok");if(!["GET","HEAD"].includes(request.method))return new Response("Method not allowed",{status:405});const asset=assets[path==="/"?"/index.html":path];return asset?new Response(request.method==="HEAD"?null:asset.body,{headers:{"Content-Type":asset.type,"X-Content-Type-Options":"nosniff"}}):new Response("Not found",{status:404});}};');
-await copyFile('.openai/hosting.json','sites-artifact/.openai/hosting.json');
-
-await cp('drizzle','sites-artifact/drizzle',{recursive:true});
+await writeFile(
+  'sites-artifact/dist/server/index.js',
+  combinedWorkerSource +
+    '\nconst SERVER_DATA=' +
+    JSON.stringify(embeddedServerData) +
+    ';\nconst assets=' +
+    JSON.stringify(staticAssets) +
+    `;
+export default {
+  async fetch(request, environment) {
+    const pathname = new URL(request.url).pathname;
+    if (pathname === '/api/address/tools') return addressTools(request, environment);
+    if (pathname === '/api/voice/session') return session(request, environment);
+    if (pathname.startsWith('/api/')) return properties(request, environment);
+    if (pathname === '/healthz') return new Response('ok');
+    if (!['GET', 'HEAD'].includes(request.method))
+      return new Response('Method not allowed', {
+        status: 405,
+      });
+    const staticAsset = assets[pathname === '/' ? '/index.html' : pathname];
+    return staticAsset
+      ? new Response(request.method === 'HEAD' ? null : staticAsset.body, {
+          headers: {
+            'Content-Type': staticAsset.type,
+            'X-Content-Type-Options': 'nosniff',
+          },
+        })
+      : new Response('Not found', {
+          status: 404,
+        });
+  },
+};
+`,
+);
+await copyFile('.openai/hosting.json', 'sites-artifact/.openai/hosting.json');
+await cp('drizzle', 'sites-artifact/drizzle', {
+  recursive: true,
+});

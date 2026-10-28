@@ -1,0 +1,6 @@
+PASS identical Python AST after reversing lexical renames: livekit-agent/address_agent.py
+PASS identical Python AST after reversing lexical renames: livekit-agent/probe_tools.py
+PASS identical Python AST after reversing lexical renames: livekit-agent/test_address_agent.py
+PASS identical Python AST after reversing lexical renames: livekit-agent/test_audio_stream.py
+PASS identical Python AST after reversing lexical renames: livekit-agent/voice_worker.py
+PASS identical Python AST after reversing lexical renames: server.py

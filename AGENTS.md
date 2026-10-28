@@ -29,12 +29,23 @@
 
 ## Code Quality
 
-- Favor readable control flow, descriptive names, and small cohesive units.
+- Make code understandable to a reader new to the project. Follow the mandatory naming and readability requirements below; prefer clarity over brevity or cleverness.
 - Keep domain states and serialized contract values centrally defined and validated at boundaries.
 - Handle expected states explicitly. Do not silently swallow failures or invent fallback behavior that hides invalid state.
 - Use environment variables for deployment-specific configuration and secrets, not as an undocumented substitute for application design.
 - Follow the mandatory inline documentation requirements below for every code change.
 - Do not mix unrelated cleanup or refactoring into a focused change.
+
+## Code Understandability (Required)
+
+- Choose names deliberately to explain what a value represents and what it does in the domain. Use descriptive nouns for values, action verbs for functions, and predicates such as `isListening` or `hasMatchingAddress` for booleans. Follow the language's naming style.
+- Avoid cryptic abbreviations, single-letter business variables, and vague placeholders such as `r`, `s`, `tmp`, or an unexplained `data`. Name callback parameters and test helpers as carefully as production variables: `propertyRecord`, `toolRequest`, `microphoneStream`, and `getElementById` convey their roles.
+- Distinguish values that can be confused: raw versus normalized input, a requested address versus a source record, a suggested candidate versus a confirmed match, pending versus committed state, and capture versus playback. Include units or ownership when they matter, such as `issuedAtSeconds` or `microphoneRoom`.
+- Use consistent domain vocabulary across related modules. Prefer an accurate, natural name over the shortest spelling; do not replace a short name with an equally vague long one. A name must fit the specific scope: a source valuation is not an address, and a state callback parameter is not an audio stream.
+- Reserve short conventional names for genuinely obvious local roles or externally required contracts. Preserve API/schema keys, SDK names, exported interfaces, and generated third-party code; use descriptive local aliases when useful instead of breaking compatibility solely to rename a field.
+- Write ordinary, readable control flow with visible steps. Expand compressed functions and avoid putting unrelated statements on one line. Keep formatting consistent and make branching, error handling and asynchronous cancellation easy to follow. Do not add abstractions merely to make names longer.
+- Keep inline explanations accurate when names change. Comments should explain purpose and constraints; they do not excuse a misleading name or opaque implementation.
+- Before completing a code change, read the affected code as a newcomer. Verify that names reveal meaning, distinguish lifecycle states, and agree with nearby documentation. Apply this review to internal helpers, scripts, callbacks and tests as well as public functions.
 
 ## Inline Code Documentation (Required)
 
