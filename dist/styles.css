@@ -2,11 +2,12 @@
 *{box-sizing:border-box}
 body{margin:0;min-height:100svh;display:grid;align-items:start;padding:clamp(32px,18vh,180px) 20px 40px}
 main{width:100%;max-width:660px;margin:0 auto}
-form{display:flex;gap:10px;align-items:stretch}
+form{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:stretch}
 input{min-width:0;flex:1;border:1px solid #d9dfd7;border-radius:14px;background:#fff;padding:16px 18px;font:inherit;font-size:16px;line-height:1.5;outline:none;box-shadow:0 2px 6px #20352004}
 input::placeholder{color:#818a80}
 input:focus-visible{border-color:#4d6b48;box-shadow:0 0 0 3px #4d6b481c}
 button{flex:none;min-width:100px;min-height:56px;border:1px solid #304c2d;border-radius:14px;padding:14px 20px;background:#304c2d;color:white;font:inherit;font-weight:600;cursor:pointer;touch-action:manipulation}
+.submit-button{background:white;color:#304c2d;border-color:#c8d2c4}
 button:hover{background:#263e23}
 button:focus-visible,a:focus-visible{outline:3px solid #8eaf81;outline-offset:3px}
 button:disabled{opacity:.45;cursor:wait}
@@ -16,8 +17,11 @@ p{margin:18px 2px 0;line-height:1.6;overflow-wrap:anywhere;white-space:pre-line}
 #status[data-error=true]{color:#9a352d}
 #transcript{font-size:18px;color:#303b2e}
 #result{color:#52614e}
+#price{display:block;margin:10px 2px 0;font-size:clamp(32px,6vw,44px);font-weight:650;line-height:1.2;letter-spacing:-.03em;color:#203b1e}
 a{display:inline-block;margin:12px 2px 0;color:#304c2d;text-underline-offset:3px}
 [hidden]{display:none!important}
 .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-@media(max-width:420px){body{padding:72px 16px 32px}form{gap:8px}input{padding:14px 12px}button{min-width:84px;padding:14px}}
+@media(max-width:520px){body{padding:72px 16px 32px}form{grid-template-columns:1fr 1fr;gap:8px}input{grid-column:1/-1;padding:14px 12px}button{min-width:0;padding:14px}}
 @media(prefers-reduced-motion:no-preference){button{transition:background .15s ease}}
+
+button.submit-button:hover{background:#edf2e9}

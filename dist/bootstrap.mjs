@@ -7,4 +7,5 @@ try {
   status.hidden=false;
   status.dataset.error='true';
   document.getElementById('talk').disabled=true;
+  document.getElementById('submit').disabled=true;
 }

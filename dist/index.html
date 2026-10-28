@@ -10,12 +10,14 @@
 <form id="search-form" autocomplete="off">
 <label class="sr-only" for="address">Text or property address</label>
 <input id="address" name="address" type="text" placeholder="Type or speak…" maxlength="250" enterkeyhint="send">
+<button id="submit" type="submit" class="submit-button" aria-label="Submit address" disabled>Enter</button>
 <button id="talk" type="button" disabled><span id="talk-label">Speak</span></button>
 </form>
 <p id="status" role="status" hidden></p>
 <a id="sign-in" href="/signin-with-chatgpt?return_to=%2F" target="_top" hidden>Sign in with ChatGPT</a>
 <p id="transcript" aria-live="polite" hidden></p>
 <p id="result" aria-live="polite" hidden></p>
+<output id="price" aria-label="Property value" aria-describedby="result" aria-live="polite" hidden></output>
 </main>
 <script type="module" src="bootstrap.mjs"></script>
 </body>

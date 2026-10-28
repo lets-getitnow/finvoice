@@ -14,7 +14,7 @@ async def main():
  async def emit(event):pass
  agent=AddressToolAgent(invoke,emit)
  try:
-  first=await agent.resolve(1,'50 Smith Avenue Fixture City 00000')
+  first=await agent.resolve(1,'50 Smyth Avenue Fixture City 00000')
   assert first['result']['kind']=='choose' and first['context']['last_question']['field']=='confirm'
   process.stdin.write(b'{"commit":1}\n');await process.stdin.drain();await process.stdout.readline();agent.commit(first)
   second=await agent.resolve(2,'yes')

@@ -27,9 +27,16 @@ export function canonicalAddressReply(raw){
 }
 const label=r=>[r.street,r.city,r.state,r.postal_code].filter(Boolean).join(', ');
 const publicRecord=(record,confirmed=false)=>({id:record.id,street:record.street,city:record.city,state:record.state,postal_code:record.postal_code,...(confirmed?{values:record.values}:{valuationConflict:record.values.length>1}),missingFields:['city','state','postal_code'].filter(k=>!record[k])});
+export function exactSourceReply(raw,record){
+ if(!record||isUnknown(raw)||isNo(raw))return false;
+ const parser=new AddressConversation([]);
+ const supplied=parser.parse(canonicalAddressReply(raw),'source',[record.cityKey].filter(Boolean));
+ const actual=parser.parse(record.street,'source',[record.cityKey].filter(Boolean));
+ return !!supplied.house&&!!supplied.name&&['house','name','suffix','direction','postDirection','unit'].every(key=>supplied[key]===actual[key])&&(!supplied.city||supplied.city===record.cityKey)&&(!supplied.zip||supplied.zip===record.zipKey);
+}
 function questionFor(result,context,preferred='auto'){
  const records=result.matches||[],unknown=new Set(context.unknown_fields||[]);
- if(result.kind==='confirmed')return {field:null,text:''};
+ if(['confirmed','exact'].includes(result.kind))return {field:null,text:''};
  if(records.length===1&&!unknown.has('confirm')){
   const r=records[0];const digits=r.street.replace(/^\d+/,number=>number.split('').join('-'));
   return {field:'confirm',text:`Did you mean ${[digits,r.city,r.postal_code].filter(Boolean).join(', ')}? Say yes or no.`};
@@ -95,7 +102,8 @@ export async function addressTools(request,env,source={info:serverInfo,load:load
   const explicitSelection=isYes(context.last_reply)||ordinalReply(context.last_reply);
   const wasOffered=(context.last_question?.candidate_ids||[]).includes(resolved.matches?.[0]?.id);
   if(resolved.kind==='confirmed'&&(!explicitSelection||!wasOffered))resolved={...resolved,kind:'choose',field:'confirm'};
-  const confirmed=resolved.kind==='confirmed';
+  if(resolved.matches?.length===1&&exactSourceReply(context.last_reply,resolved.matches[0]))resolved={...resolved,kind:'exact'};
+  const confirmed=['confirmed','exact'].includes(resolved.kind);
   const records=(resolved.matches||[]).slice(0,3);
   const safeResult={...resolved,matches:records.map(r=>publicRecord(r,confirmed))};
   if(b.tool==='find_address_candidates'){

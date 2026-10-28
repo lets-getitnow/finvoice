@@ -16,16 +16,20 @@ export function mountApp({voiceFactory=options=>new VoiceSession(options)}={}){
  }
  function render(result){
   let message=result.prompt||'';
-  if(result.kind==='confirmed'){
+  show('price','');
+  if(['confirmed','exact'].includes(result.kind)){
    const record=result.matches[0],address=[record.street,record.city,record.state,record.postal_code].filter(Boolean).join(', ');
-   message=record.values.length===1?`${address}\n${money(record.values[0])}`:`${address}\nConflicting valuations: ${record.values.map(money).join(', ')}. Check the source records.`;
+   const values=Array.isArray(record.values)?record.values.filter(Number.isFinite):[];
+   message=address;
+   if(values.length===1)show('price',money(values[0]));
+   else message+=values.length>1?`\nConflicting valuations: ${values.map(money).join(', ')}. Check the source records.`:'\nNo valuation is available for this address.';
   }else if(result.matches?.length){
    message+='\n'+result.matches.map((record,i)=>`${i+1}. ${[record.street,record.city,record.postal_code].filter(Boolean).join(', ')}`).join('\n');
   }
   show('result',message);
  }
  const voice=voiceFactory({
-  onTranscript(value,final){show('transcript',`You said: “${value}”`);$('address').value=value;if(final){clearTimeout(previewTimer);++requestVersion;state('processing','Understanding your address…');}else{clearTimeout(previewTimer);++requestVersion;previewTimer=setTimeout(()=>void preview(),300);}},
+  onTranscript(value,final){show('price','');show('transcript',`You said: “${value}”`);$('address').value=value;if(final){clearTimeout(previewTimer);++requestVersion;state('processing','Understanding your address…');}else{clearTimeout(previewTimer);++requestVersion;previewTimer=setTimeout(()=>void preview(),300);}},
   onToolCall:payload=>tools.invoke(payload),
   onToolEvent(event){
    if(event.status==='started')state('processing',({apply_address_reply:'Understanding your reply…',find_address_candidates:'Finding possible addresses…',choose_clarification:'Choosing the next question…'})[event.name]||'Working…');
@@ -48,8 +52,8 @@ export function mountApp({voiceFactory=options=>new VoiceSession(options)}={}){
    show('result',choices.length?'Possible matches — say first, second or third, or add more detail.\n'+choices.join('\n'):result.prompt||'');
   }catch{/* Read-only preview failure must not interrupt voice; committed tool failures are visible. */}
  }
- $('address').oninput=()=>{clearTimeout(previewTimer);++requestVersion;if(!$('address').value.trim()){show('result','');return;}previewTimer=setTimeout(()=>void preview(),250);};
- $('search-form').onsubmit=event=>{event.preventDefault();clearTimeout(previewTimer);++requestVersion;const text=$('address').value.trim();if(text)void voice.resolve(text);};
+ $('address').oninput=()=>{show('price','');clearTimeout(previewTimer);++requestVersion;if(!$('address').value.trim()){show('result','');return;}previewTimer=setTimeout(()=>void preview(),250);};
+ $('search-form').onsubmit=event=>{event.preventDefault();show('price','');clearTimeout(previewTimer);++requestVersion;const text=$('address').value.trim();if(text)void voice.resolve(text);};
  $('talk').onclick=()=>{
   if(mode==='listening'){void voice.finish();return;}
   if(['connecting','processing','speaking'].includes(mode)){voice.stop();state('ready');return;}
@@ -57,4 +61,5 @@ export function mountApp({voiceFactory=options=>new VoiceSession(options)}={}){
  };
  window.addEventListener('pagehide',()=>{clearTimeout(previewTimer);void voice.disconnect();});
  $('talk').disabled=false;
+ $('submit').disabled=false;
 }

@@ -21,8 +21,8 @@ function setup({signedIn=true,connected=false,mount=true}={}){
  if(mount)mountApp({voiceFactory:o=>{options=o;return {stop(){stops++;o.onCancel();},listen(){listens++;o.onState('listening');},finish(){finishes++;o.onState('processing');},resolve(text){resolved.push(text);o.onCancel();o.onState('processing');},speak(text){spoken.push(text);o.onState('speaking');},disconnect(){}};}});
  return {get,requests,spoken,resolved,async toolTurn(turn,text){let result;for(const tool of ['apply_address_reply','find_address_candidates','choose_clarification'])result=await options.onToolCall({tool,turn,utterance:text,arguments:{preferred_detail:'auto'}});options.onAddressResult(result,turn);spoken.push(result.speech);options.onState('speaking');return result;},get options(){return options;},get listens(){return listens;},get finishes(){return finishes;},get stops(){return stops;}};
 }
-test('minimal page contains only one text input and one speak button',()=>{
- assert.equal([...html.matchAll(/<button\b/g)].length,1);
+test('minimal page contains a text input, Enter submit and Speak control',()=>{
+ assert.equal([...html.matchAll(/<button\b/g)].length,2);
  assert.equal([...html.matchAll(/<input\b/g)].length,1);
  assert.match(html,/id="address"[^>]*type="text"/);
  assert.doesNotMatch(html,/Import CSV|<header|<footer|<aside|orb-wrap|data-strip|speak-toggle/);
@@ -46,10 +46,10 @@ test('same button cancels connection or playback; sign-in errors remain recovera
  h.options.onError('Sign in to use voice.');assert.equal(h.get('sign-in').hidden,false);assert.match(h.get('status').textContent,/Sign in/);
  h.get('talk').onclick();assert.equal(h.listens,1);
 });
-test('Enter invokes LiveKit resolve; only confirmed tool result displays valuation',async()=>{
+test('Enter invokes LiveKit resolve and a unique exact match displays its price',async()=>{
  const h=setup({connected:true});h.get('address').value='50 Smith Avenue Fixture City 00000';h.get('search-form').onsubmit({preventDefault(){}});
- assert.equal(h.resolved[0],'50 Smith Avenue Fixture City 00000');await h.toolTurn(1,h.resolved[0]);assert.doesNotMatch(h.get('result').textContent,/\$300/);
- h.get('address').value='yes';h.get('search-form').onsubmit({preventDefault(){}});await h.toolTurn(2,'yes');assert.match(h.get('result').textContent,/\$300/);assert.match(h.spoken.at(-1),/valuation/);
+ assert.equal(h.resolved[0],'50 Smith Avenue Fixture City 00000');await h.toolTurn(1,h.resolved[0]);assert.match(h.get('result').textContent,/50 Smith Avenue/);assert.match(h.get('price').textContent,/\$300/);
+ h.get('address').value='yes';h.get('search-form').onsubmit({preventDefault(){}});await h.toolTurn(2,'yes');assert.match(h.get('price').textContent,/\$300/);assert.match(h.spoken.at(-1),/valuation/);
 });
 test('published HTML entrypoint mounts the real controller and installs click handlers',async()=>{
  const h=setup({mount:false});
@@ -57,7 +57,7 @@ test('published HTML entrypoint mounts the real controller and installs click ha
  const published=await (await worker.fetch(new Request('https://synthetic.example/'),{})).text();
  const entry=published.match(/<script type="module" src="([^\"]+)"/)[1];
  await import('../dist/'+entry);await new Promise(setImmediate);
- assert.equal(typeof h.get('talk').onclick,'function');assert.equal(h.get('talk').disabled,false);
+ assert.equal(typeof h.get('talk').onclick,'function');assert.equal(h.get('talk').disabled,false);assert.equal(h.get('submit').disabled,false);
  assert.equal(typeof h.get('search-form').onsubmit,'function');assert.equal(h.requests.length,0,'startup does not gate voice or recommendations on metadata');
 });
 
@@ -67,4 +67,12 @@ test('typing previews recommendations without speech and keeps context for a cho
  assert.match(h.get('result').textContent,/Possible matches/);assert.doesNotMatch(h.get('result').textContent,/\$123/);assert.equal(h.spoken.length,0);
  h.get('address').value='yes';h.get('search-form').onsubmit({preventDefault(){}});await new Promise(setImmediate);
  assert.equal(h.resolved.at(-1),'yes');await h.toolTurn(1,'yes');const applied=h.requests.find(r=>r.body?.tool==='apply_address_reply');assert.deepEqual(applied.body.history,['Mint 32']);
+});
+
+test('query changes clear the price and zero-valued matches remain visible',async()=>{
+ const h=setup();await h.toolTurn(1,'70 Zero Way Fixture City 00000');assert.equal(h.get('price').hidden,false);assert.match(h.get('price').textContent,/\$0/);
+ h.get('address').value='Mint';h.get('address').oninput();assert.equal(h.get('price').hidden,true);h.get('address').value='';h.get('address').oninput();
+});
+test('conflicting source prices are shown as a conflict without a chosen headline price',async()=>{
+ const h=setup();await h.toolTurn(1,'80 Conflict Road Fixture City 00000');assert.equal(h.get('price').hidden,true);assert.match(h.get('result').textContent,/Conflicting valuations.*\$100.*\$200/);
 });

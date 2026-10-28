@@ -9,12 +9,12 @@ test('three-phase tools handle partial speech without leaking unconfirmed valuat
  const answer=await b.invoke({tool:ORDER[2],turn:1,arguments:{preferred_detail:'auto'}});assert.equal(answer.result.kind,'choose');assert.match(answer.speech,/Fixture/);assert.equal(answer.result.field,'city');b.commit(1);
 });
 test('model cannot invent yes; withdrawal and unknown replies preserve safety',async()=>{
- const b=makeBroker();const first=await turn(b,1,'50 Smith Avenue Fixture City 00000');assert.equal(first.result.field,'confirm');assert.equal(first.result.matches[0].values,undefined);
+ const b=makeBroker();const first=await turn(b,1,'50 Smyth Avenue Fixture City 00000');assert.equal(first.result.field,'confirm');assert.equal(first.result.matches[0].values,undefined);
  const unknown=await turn(b,2,"I don't know");assert.ok(unknown.context.unknown_fields.includes('confirm'));assert.notEqual(unknown.result.kind,'confirmed');
  const reply=await turn(b,3,'yeah no, the other one',{intent:'confirm'});assert.notEqual(reply.result.kind,'confirmed');assert.ok(reply.result.matches.every(r=>r.values===undefined));
 });
 test('explicit confirmation permits source-backed valuation and keeps context',async()=>{
- const b=makeBroker();await turn(b,1,'50 Smith Avenue Fixture City 00000');const yes=await turn(b,2,'yes',{intent:'confirm'});assert.equal(yes.result.kind,'confirmed');assert.equal(yes.result.matches[0].values[0],300);
+ const b=makeBroker();await turn(b,1,'50 Smyth Avenue Fixture City 00000');const yes=await turn(b,2,'yes',{intent:'confirm'});assert.equal(yes.result.kind,'confirmed');assert.equal(yes.result.matches[0].values[0],300);
 });
 test('canonical repairs preserve house numbers and spoken number groups',()=>{
  assert.equal(canonicalAddressReply('32 Main no Mint'),'32 Mint');assert.equal(canonicalAddressReply('Mint thirty two twenty'),'3220 Mint');assert.equal(canonicalAddressReply('no, thirty two, not twenty three'),'the house number is 32');
@@ -49,5 +49,5 @@ test('semantic tool hints remain unconfirmed and cannot replace a detail with a 
  const notYes=await turn(b,3,'maybe',{intent:'confirm',normalized_hint:'yes'});assert.notEqual(notYes.result.kind,'confirmed');
 });
 test('model ordinal hint cannot manufacture confirmation for an uncertain actual reply',async()=>{
- const b=makeBroker();await turn(b,1,'50 Smith Avenue Fixture City 00000');const r=await turn(b,2,'maybe',{intent:'address',normalized_hint:'the first'});assert.notEqual(r.result.kind,'confirmed');assert.equal(r.result.matches[0]?.values,undefined);
+ const b=makeBroker();await turn(b,1,'50 Smyth Avenue Fixture City 00000');const r=await turn(b,2,'maybe',{intent:'address',normalized_hint:'the first'});assert.notEqual(r.result.kind,'confirmed');assert.equal(r.result.matches[0]?.values,undefined);
 });
