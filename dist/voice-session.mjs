@@ -19,10 +19,10 @@ export class VoiceSession {
    * Inject callbacks, SDK loader and HTTP adapter. Defaults use browser fetch/dynamic import;
    * tools are unavailable until onToolCall is supplied.
    */
-  constructor({onTranscript=()=>{},onState=()=>{},onError=()=>{},onToolCall=async()=>{throw new Error('Address tools are not configured.');},onToolEvent=()=>{},onAddressResult=()=>false,onCancel=()=>{},loadSDK=()=>import('./livekit-sdk.mjs'),request=(...args)=>fetch(...args)}={}){
-    Object.assign(this,{onTranscript,onState,onError,onToolCall,onToolEvent,onAddressResult,onCancel,loadSDK,request});
+  constructor({onTranscript=()=>{},onState=()=>{},onError=()=>{},onToolCall=async()=>{throw new Error('Address tools are not configured.');},onToolEvent=()=>{},onAddressResult=()=>false,onCancel=()=>{},loadSDK=()=>import('./livekit-sdk.mjs'),captureAudio=()=>navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false}),request=(...args)=>fetch(...args)}={}){
+    Object.assign(this,{onTranscript,onState,onError,onToolCall,onToolEvent,onAddressResult,onCancel,loadSDK,captureAudio,request});
     this.version=0;this.epoch=0;this.room=null;this.agent=null;this.connecting=null;
-    this.mic=null;this.audio=new Set();this.listening=false;this.timer=null;this.playback=null;
+    this.mic=null;this.micRoom=null;this.capture=null;this.audio=new Set();this.listening=false;this.timer=null;this.playback=null;
   }
   /**
    * Reuse an established worker connection or coalesce concurrent callers onto one in-flight
@@ -32,7 +32,8 @@ export class VoiceSession {
     if(this.room&&this.agent)return;
     if(this.connecting)return this.connecting;
     const epoch=this.epoch;
-    this.connecting=this.connect(epoch).finally(()=>{this.connecting=null;});
+    const pending=this.connect(epoch).finally(()=>{if(this.connecting===pending)this.connecting=null;});
+    this.connecting=pending;
     return this.connecting;
   }
   /**
@@ -42,32 +43,36 @@ export class VoiceSession {
    */
   async connect(epoch){
     const sdk=await this.loadSDK();
+    if(epoch!==this.epoch)throw new VoiceError('Voice connection was cancelled.');
     const response=await this.request('/api/voice/session',{method:'POST',credentials:'same-origin',cache:'no-store'});
     const details=await response.json();
+    if(epoch!==this.epoch)throw new VoiceError('Voice connection was cancelled.');
     if(!response.ok)throw new VoiceError(details.error||'Voice service is unavailable. Retry or type your address.');
     const room=new sdk.Room({adaptiveStream:false,dynacast:false});
     this.sdk=sdk;this.room=room;
     // Authorize the ready worker identity and current turn both before and after asynchronous tool execution.
     room.localParticipant.registerRpcMethod('finvoice.address_tool',async data=>{
-      if(data.callerIdentity!==this.agent)throw new sdk.RpcError(1401,'Not authorized');
+      if(this.room!==room||epoch!==this.epoch||data.callerIdentity!==this.agent)throw new sdk.RpcError(1401,'Not authorized');
       let payload;try{payload=JSON.parse(data.payload);}catch{throw new sdk.RpcError(1400,'Invalid tool payload');}
       if(data.payload.length>12000||payload.turn!==this.version)throw new sdk.RpcError(1400,'Stale address turn');
       const version=this.version;
       try{
         const result=await this.onToolCall(payload);
-        if(version!==this.version)throw new Error('Stale address result');
+        if(this.room!==room||epoch!==this.epoch||version!==this.version)throw new Error('Stale address result');
         return JSON.stringify(result);
       }catch{throw new sdk.RpcError(1500,'Address tool could not complete');}
     });
     // Attach only agent audio; mute by default until the current result has been committed.
     room.on(sdk.RoomEvent.TrackSubscribed,(track,publication,participant)=>{
+      if(this.room!==room||epoch!==this.epoch)return;
       if(participant.kind!==sdk.ParticipantKind.AGENT||track.kind!==sdk.Track.Kind.Audio)return;
       const audio=track.attach();audio.autoplay=true;audio.muted=this.playback!==this.version;
       document.body.append(audio);this.audio.add(audio);
-      audio.addEventListener('error',()=>this.fail('Audio playback failed. Your answer remains on screen.'));
+      audio.addEventListener('error',()=>{if(this.room===room&&this.audio.has(audio))this.fail('Audio playback failed. Your answer remains on screen.');});
     });
     // Accept only the ready worker/topic/current ID. Final transcripts release capture; result commitment unlocks playback.
     room.on(sdk.RoomEvent.DataReceived,(bytes,participant,kind,topic)=>{
+      if(this.room!==room||epoch!==this.epoch)return;
       if(participant?.identity!==this.agent||topic!=='finvoice.voice')return;
       let message;try{message=JSON.parse(new TextDecoder().decode(bytes));}catch{return;}
       if(message.id!==this.version)return;
@@ -83,7 +88,7 @@ export class VoiceSession {
       if(message.type==='address_result'){
         if(this.onAddressResult(message.result,message.id)===false){this.fail('Address result was interrupted. Try again.');return;}
         this.playback=this.version;
-        for(const audio of this.audio){audio.muted=false;void audio.play().catch(()=>this.fail('Audio was blocked. Tap Speak to try again.'));}
+        for(const audio of this.audio){audio.muted=false;void audio.play().catch(()=>{if(this.room===room&&message.id===this.version)this.fail('Audio was blocked. Tap Speak to try again.');});}
         this.clearTimer();this.timer=setTimeout(()=>this.fail('Speech playback timed out. Your result remains on screen.'),45000);
       }
       if(message.type==='speech_started')this.onState('speaking');
@@ -102,7 +107,8 @@ export class VoiceSession {
     });
     try{
       await room.connect(details.url,details.token);
-      await room.startAudio();
+      if(epoch!==this.epoch)throw new VoiceError('Voice connection was cancelled.');
+      await this.startPlayback(room);
       // Poll advertised readiness/toolsVersion within this connection epoch; joining the room alone is insufficient.
       const deadline=Date.now()+15000;
       while(epoch===this.epoch){
@@ -116,8 +122,17 @@ export class VoiceSession {
       }
       throw new VoiceError('Voice connection was cancelled.');
     }catch(error){
-      if(this.room===room){this.room=null;this.agent=null;}
-      await room.disconnect();this.removeAudio();throw error;
+      if(this.room===room){this.room=null;this.agent=null;this.removeAudio();}
+      await room.disconnect();throw error;
+    }
+  }
+  /** Autoplay denial is independent of microphone permission. Keep capture/text
+   * usable; explicit playback attempts report any remaining block with audio text. */
+  async startPlayback(room){
+    try{await room.startAudio();return true;}
+    catch(error){
+      if(error.name==='NotAllowedError')return false;
+      throw new VoiceError('Audio playback could not start. Try again; you can also type your address.');
     }
   }
   /**
@@ -138,8 +153,10 @@ export class VoiceSession {
    * already disconnected room.
    */
   async releaseMic(){
-    const mic=this.mic;this.mic=null;
-    if(mic){mic.stop();try{await this.room?.localParticipant.unpublishTrack(mic);}catch{/* Already disconnected. */}}
+    const capture=this.capture;this.capture=null;
+    if(capture)for(const track of capture.getTracks())track.stop();
+    const mic=this.mic,room=this.micRoom;this.mic=null;this.micRoom=null;
+    if(mic){mic.stop();try{await room?.localParticipant.unpublishTrack(mic);}catch{/* Already disconnected. */}}
   }
   /**
    * Silence all attached remote audio without removing tracks.
@@ -164,24 +181,43 @@ export class VoiceSession {
    */
   fail(message){this.stop();this.onError(message);}
   /**
-   * Start a new turn, connect, tell the worker to listen and publish processed microphone audio.
+   * Request permission in the original tap before SDK/network awaits. Hold capture
+   * disabled until the worker is ready; each attempt owns its stream and room.
    * Check generation after each await; auto-finish capture after 20 seconds.
    */
   async listen(){
     this.stop();const id=++this.version;
     this.onState('connecting');
+    let stream,mic,room;
     try{
+      // Invoke getUserMedia synchronously while the browser still has the gesture.
+      let capture;
+      try{capture=this.captureAudio();}catch(error){throw new VoiceError(this.errorText(error,'microphone'));}
+      stream=await Promise.resolve(capture).catch(error=>{throw new VoiceError(this.errorText(error,'microphone'));});
+      if(id!==this.version)return;
+      const track=stream.getAudioTracks()[0];
+      if(!track)throw new VoiceError('No microphone was found. Connect one and try again, or type your address.');
+      track.enabled=false;this.capture=stream;
       await this.ensureConnected();if(id!==this.version)return;
+      room=this.room;
       await this.control('listen',id);if(id!==this.version)return;
-      const mic=await this.sdk.createLocalAudioTrack({echoCancellation:true,noiseSuppression:true,autoGainControl:true});
-      if(id!==this.version){mic.stop();return;}
-      this.mic=mic;this.listening=true;
-      await this.room.localParticipant.publishTrack(mic,{source:this.sdk.Track.Source.Microphone});
-      if(id!==this.version){mic.stop();await this.room?.localParticipant.unpublishTrack(mic);return;}
+      // LiveKit's publishTrack/unpublishTrack accept a native MediaStreamTrack;
+      // the SDK wraps it internally. Keep the original capture handle for Stop.
+      mic=track;
+      this.capture=null;this.mic=mic;this.micRoom=room;this.listening=true;
+      await room.localParticipant.publishTrack(mic,{source:this.sdk.Track.Source.Microphone});
+      if(id!==this.version){mic.stop();await room.localParticipant.unpublishTrack(mic);return;}
       if(!this.listening)return;
+      track.enabled=true;
       this.onState('listening');
       this.timer=setTimeout(()=>void this.finish(),20000);
     }catch(error){if(id===this.version)this.fail(this.errorText(error));}
+    finally{
+      // Includes delayed permission grants after Stop, errors before wrapping and
+      // publication completion after a newer listen has already taken ownership.
+      if(stream&&(id!==this.version||!mic||this.mic!==mic))for(const track of stream.getTracks())track.stop();
+      if(this.capture===stream)this.capture=null;
+    }
   }
   /**
    * Stop current microphone capture and ask the worker to finish transcription; allow eight
@@ -204,7 +240,7 @@ export class VoiceSession {
     this.stop();const id=++this.version;this.onState('connecting');
     try{
       await this.ensureConnected();if(id!==this.version)return;
-      await this.room.startAudio();
+      await this.startPlayback(this.room);if(id!==this.version)return;
       await this.control('resolve',id,text);if(id!==this.version)return;
       this.onState('processing');this.timer=setTimeout(()=>this.fail('Address tools timed out. Please try again.'),60000);
     }catch(error){if(id===this.version)this.fail(this.errorText(error));}
@@ -217,10 +253,10 @@ export class VoiceSession {
     this.stop();const id=++this.version;this.onState('processing');
     try{
       await this.ensureConnected();if(id!==this.version)return;
-      await this.room.startAudio();
+      await this.startPlayback(this.room);if(id!==this.version)return;
       this.playback=id;
       await this.control('speak',id,text);if(id!==this.version||this.playback!==id)return;
-      for(const audio of this.audio){audio.muted=false;void audio.play().catch(()=>this.fail('Audio was blocked. Tap the speaker button to retry.'));}
+      for(const audio of this.audio){audio.muted=false;void audio.play().catch(()=>{if(id===this.version)this.fail('Audio was blocked. Tap the speaker button to retry.');});}
       this.timer=setTimeout(()=>this.fail('Speech playback timed out. Your answer remains on screen.'),45000);
     }catch(error){if(id===this.version)this.fail(this.errorText(error));}
   }
@@ -228,19 +264,22 @@ export class VoiceSession {
    * Map browser permission/device errors and authored VoiceErrors to recovery text; never expose
    * raw provider messages or credentials.
    */
-  errorText(error){
-    if(['NotAllowedError','SecurityError'].includes(error.name))return 'Microphone access was blocked. Allow microphone access in your browser’s site settings, then try again. You can also type the address.';
-    if(error.name==='NotFoundError')return 'No microphone was found. Connect one and try again, or type your address.';
+  errorText(error,source='voice'){
+    if(source==='microphone'&&['NotAllowedError','SecurityError'].includes(error.name))return 'Microphone access was blocked. Allow microphone access in your browser’s site settings, then try again. You can also type the address.';
+    if(source==='microphone'&&error.name==='NotFoundError')return 'No microphone was found. Connect one and try again, or type your address.';
+    if(source==='microphone'&&error.name==='NotReadableError')return 'Your microphone is busy or unavailable. Close other recordings, then try again. You can also type the address.';
     // Only display our own messages, never raw SDK/provider errors or tokens.
     if(error instanceof VoiceError)return error.message;
-    return 'Voice could not connect. Check microphone access and your connection, then retry or type your address.';
+    return 'Voice could not connect. Check your connection, then retry or type your address.';
   }
   /**
    * Cancel the current turn, invalidate connecting work, leave the room and remove audio nodes.
    */
   async disconnect(){
     this.stop();this.epoch++;
+    this.connecting=null;
     const room=this.room;this.room=null;this.agent=null;
-    if(room)await room.disconnect();this.removeAudio();
+    // Remove owned audio before awaiting disconnect, which may overlap a retry.
+    this.removeAudio();if(room)await room.disconnect();
   }
 }
