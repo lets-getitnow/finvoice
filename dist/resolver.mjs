@@ -8,6 +8,7 @@ const digits={zero:'0',oh:'0',one:'1',two:'2',three:'3',four:'4',five:'5',six:'6
 const escapeRE=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 function parts(street){
   const tokens=normalize(street).split(' ').filter(Boolean),result={};
+  if(tokens.length>1&&!/^\d/.test(tokens[0])&&/^\d+[a-z]?$/.test(tokens.at(-1)))tokens.unshift(tokens.pop());
   const unitAt=tokens.findIndex(t=>['apt','ste','#','unit'].includes(t));
   if(unitAt>=0){result.unit=tokens.slice(unitAt+1).join('');tokens.splice(unitAt);}
   if(/^\d+[a-z]?$/.test(tokens[0]))result.house=tokens.shift();
@@ -45,7 +46,8 @@ function similarity(a,b){
 function contextLabel(s){return [s.house,s.direction,s.name,s.suffix,s.postDirection,s.unit?`unit ${s.unit}`:'',s.city,s.zip].filter(Boolean).join(' ');}
 
 export class AddressConversation {
-  constructor(records){
+  constructor(records,{allowHousePrefix=false}={}){
+    this.allowHousePrefix=allowHousePrefix;
     this.slots={};this.cities=[...new Set(records.map(r=>r.cityKey).filter(Boolean))].sort((a,b)=>b.length-a.length);
     this.entries=records.map(record=>({record,p:this.parse(record.street,'source',[record.cityKey].filter(Boolean))}));
     this.byZip=new Map();this.byCity=new Map();
@@ -87,7 +89,7 @@ export class AddressConversation {
     if(prior?.matches.length===1&&prior.field==='confirm'&&/^(?:yes|yeah|yep|correct|confirm|that s (?:right|it)|yes that s (?:right|it))$/.test(simple))return this.confirm(prior.matches[0]);
     const ordinals={first:0,second:1,third:2,'1':0,'2':1,'3':2,one:0,two:1,three:2};
     const ordinal=simple.match(/^(?:the |option |number )?(first|second|third|[123]|one|two|three)(?: one| option)?$/);
-    if(prior?.matches.length&&ordinal&&prior.field!=='house'&&prior.field!=='unit'){
+    if(prior?.matches.length&&ordinal&&prior.field!=='unit'&&(prior.field!=='house'||/^(?:the )?(?:first|second|third|option |number )/.test(simple))){
       const r=prior.matches[ordinals[ordinal[1]]];if(r)return this.confirm(r);
     }
     if(prior&&/^(?:no|nope|neither|none|none of those|not that one)$/.test(simple)){
@@ -121,7 +123,7 @@ export class AddressConversation {
       return this.finish({kind:'none',matches:[],total:0,field:this.slots.zip?'zip':this.slots.city?'city':'street',prompt:`No matching address yet${locality}. ${locality?'Check that locality, give a correction, or say “search everywhere”.':'Check the house number or street name; you can correct just that detail.'}`});
     }
     const total=candidates.length;
-    if(!this.slots.house)return this.finish({kind:'choose',matches:[],total,field:'house',prompt:`What is the house number${this.slots.name?` on ${this.slots.name}`:''}?`});
+    if(!this.slots.house)return this.finish({kind:'choose',matches:candidates.slice(0,3).map(c=>c.record),total,field:'house',prompt:`What is the house number${this.slots.name?` on ${this.slots.name}`:''}?`});
     if(!this.slots.name)return this.finish({kind:'choose',matches:[],total,field:'street',prompt:'What is the street name?'});
     if(total===1){const c=candidates[0];if(c.exact&&!this.mustConfirm)return this.finish({kind:'exact',matches:[c.record],total,field:null,prompt:''});
       return this.finish({kind:'choose',matches:[c.record],total,field:'confirm',prompt:`Did you mean ${displayAddress(c.record)}? Say yes, no, or give a correction.`});}
@@ -131,27 +133,30 @@ export class AddressConversation {
       if(values.size>1){field=key;break;}
     }
     const questions={zip:'What is the ZIP code?',city:'Which city is the property in?',suffix:'Is it '+[...new Set(candidates.map(c=>longSuffixes[c.p.suffix]||'a street without a suffix'))].slice(0,3).join(' or ')+'?',direction:'Which direction is part of the address: north, south, east, or west?',unit:'What is the apartment or unit number?',house:'What is the house number?',street:'Can you give the full street name?'};
-    // Large sets ask for a detail rather than exposing a truncated, misleading choice list.
-    const matches=total<=3?candidates.map(c=>c.record):[];
+    // Show bounded recommendations while continuing to ask for the missing detail.
+    const matches=candidates.slice(0,3).map(c=>c.record);
     const choices=matches.length===2?'first or second':'first, second, or third';
     return this.finish({kind:'choose',matches,total,field:field||'street',prompt:questions[field||'street']+(matches.length?` You can also choose an address below or say the ${choices} one.`:'')});
   }
-  retrieve(s){
+  retrieve(s,prefix=false){
     let entries=s.zip?(this.byZip.get(s.zip)||[]):s.city?(this.byCity.get(s.city)||[]):this.entries;
     const found=[];
     for(const e of entries){const {record:r,p}=e;
-      if(this.rejected.has(r.id)||s.city&&r.cityKey!==s.city||s.house&&s.house!==p.house||s.unit&&s.unit!==p.unit)continue;
+      if(this.rejected.has(r.id)||s.city&&r.cityKey!==s.city||s.house&&(prefix?!p.house?.startsWith(s.house):s.house!==p.house)||s.unit&&s.unit!==p.unit)continue;
       if(s.direction&&p.direction&&s.direction!==p.direction||s.postDirection&&p.postDirection&&s.postDirection!==p.postDirection)continue;
       const sourceName=s.direction&&!p.direction||s.postDirection&&!p.postDirection?lexicalName(s):(s.name||'').replace(/\s/g,'');
       const recordName=s.direction&&!p.direction||s.postDirection&&!p.postDirection?lexicalName(p):(p.name||'').replace(/\s/g,'');
       const score=s.name?similarity(sourceName,recordName):1;if(!score)continue;
-      const exact=!!s.house&&s.name===p.name&&s.suffix===p.suffix&&s.direction===p.direction&&s.postDirection===p.postDirection&&s.unit===p.unit;
+      const exact=!prefix&&!!s.house&&s.name===p.name&&s.suffix===p.suffix&&s.direction===p.direction&&s.postDirection===p.postDirection&&s.unit===p.unit;
       found.push({...e,score:score-(s.suffix&&s.suffix!==p.suffix ? .15 : 0),exact,recovered:!exact});
     }
+    if(!found.length&&!prefix&&this.allowHousePrefix&&s.house&&s.name)return this.retrieve(s,true);
     const exact=found.filter(c=>c.exact);if(exact.length)return exact;
     const compatible=found.filter(c=>(!s.suffix||s.suffix===c.p.suffix));
     return (compatible.length?compatible:found).sort((a,b)=>b.score-a.score||a.record.id-b.record.id);
   }
   finish(result){result.context=contextLabel(this.slots);this.pending=result;return result;}
-  confirm(record){return this.finish({kind:'confirmed',matches:[record],total:1,field:null,prompt:''});}
+  confirm(record){this.slots={...this.parse(record.street,'source',[record.cityKey].filter(Boolean)),city:record.cityKey,zip:record.zipKey};return this.finish({kind:'confirmed',matches:[record],total:1,field:null,prompt:''});}
 }
+
+export function streetNameScore(query,name){return similarity(query.replace(/\s/g,''),name.replace(/\s/g,''));}

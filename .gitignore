@@ -10,3 +10,6 @@ dist/data/*.csv
 *.tar.gz
 *.sqlite3
 *.sqlite3-*
+sites-artifact/
+*.pyc
+private-data/

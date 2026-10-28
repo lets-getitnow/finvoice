@@ -1,47 +1,25 @@
 # Finvoice
 
-A browser voice assistant that looks up Texas property addresses and reads back valuations from a company export. Speak or type an address; the assistant retains details across clarification turns, normalizes address forms, asks for missing information and flags conflicting valuations.
+Public minimal interface: one text field, one Speak/Finish/Stop button and LiveKit text output. Signed-in visitors automatically use the original company export on the server. Visitors never upload a CSV. Enter submits typed lookup; microphone transcripts use the same server lookup.
 
-## Run
+The original CSV lives at ignored `private-data/properties.csv` during builds. Its identity is pinned by `.openai/property-source.json`; missing or mismatched input fails the build. Never commit the CSV or generated deployment artifact. `npm run build` validates and indexes it into compressed house-number groups embedded only in the server Worker. The browser receives relevant matches, never the CSV or complete index. A small bounded group cache avoids loading the full dataset into a 128 MB Worker. Existing D1 tables remain intact but are no longer the source of visitor data; obsolete upload routes are disabled.
 
-Requires Python 3. No runtime package installation or model API key is needed.
+Run `npm run build` and `npm test`. Fixtures are isolated test doubles, never production records. The real source is an owner-provided company export and has not been independently verified. Updates require replacing the deployment's server input and its reviewed fingerprint, not a visitor upload.
 
-```sh
-python3 server.py --csv '/absolute/path/to/company-export.csv'
-```
+LiveKit uses the bundled browser SDK, authenticated session API and a separate cloud worker. Runtime secrets: LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET. Agent CA_azDo7whJaK6Q registers as finvoice; LIVEKIT_AGENT_NAME can override token dispatch if that changes. Code and Dockerfile are under livekit-agent/. No browser speech fallback. Real microphone/device behavior requires live validation.
 
-Open http://127.0.0.1:8787. Click **Start talking**, allow microphone access and say an address. You can type instead, reply to clarifying questions, stop audio or reset the search.
+Typing shows up to three address recommendations after a short pause. Street-first input and partial house numbers are supported; a longer house number remains a suggestion until explicitly confirmed. Reply by voice/text with yes, an ordinal choice or a clarifying ZIP/city. The LiveKit worker currently provides speech RPC controls; deterministic address resolution runs on the server. Earlier proposed agent-tool definitions were not present in the recovered source.
 
-The company dataset is intentionally excluded from Git. Supply your authorized export using `--csv`, use **Import CSV** in the browser, or place it at ignored `dist/data/properties.csv` for the default startup path. Expected columns:
+## LiveKit disambiguation tool calls
 
-```text
-street,city,state,postal_code,property_value
-```
+Committed typed or final voice turns now run through actual LiveKit Agents `@llm.function_tool` calls in `livekit-agent/address_agent.py`, using LiveKit Inference `openai/gpt-4.1-mini` with existing project credentials. The model must invoke `apply_address_reply`, `find_address_candidates`, then `choose_clarification`. No browser-only substitute or free-form model valuation is used. Each call emits turn-scoped start/completion/error events.
 
-An omitted or unavailable file produces a visible loading error with retry/import recovery. No sample valuations are silently substituted. Browser imports are session-local and cleared on reload.
+The worker calls the authenticated participant's narrow `finvoice.address_tool` RPC. Its browser broker invokes `/api/address/tools` with same-origin credentials, fixed tool names, locally owned history and the actual utterance. Cookies and API keys are never transferred to the worker. The server recomputes candidates from the original CSV, withholds unconfirmed valuations and decides the question/result that will be spoken. The model can classify a reply and suggest a question field; it cannot manufacture confirmation or record values.
 
-## What is included
+State stays in browser memory and the active worker room. Calls and results are checked for turn, participant and phase. Interruption cancels unfinished work; only a completed, current result commits state. Previews remain read-only and do not invoke the model. Unknown details select another question; rejected records remain excluded until reset. A question asks for one detail, preferring short choices/city over ZIP where useful. All uncertain and exact tool-path candidates require explicit confirmation.
 
-- The complete portable workflow kernel: `KERNEL.MD` and its ten explicit dependencies.
-- The property lookup frontend, speech controls, CSV parser, conversational address resolver and local server.
-- Isolated synthetic engineering tests and this project's own bootstrap evidence.
+Run Python checks with `python -m unittest discover -s livekit-agent -p 'test_*.py'`. The explicit manual `livekit-agent/probe_tools.py` uses the real LiveKit model but an isolated synthetic address source; it is excluded from routine tests. Real phone audio/RTC remains a separate live check. No raw utterance, model arguments or valuations are printed to application logs.
 
-This is a new Git history. Source repository analysis, simulations, vendor documentation, historical reports, cloud project identities, credentials, local environments and company records are not included.
+## Repository and checks
 
-## Voice, data and access
-
-Voice uses browser speech recognition and synthesis; support varies by browser. Try Chrome if unavailable. Recognition may send audio to the browser's speech provider. No microphone recording or transcript history is persisted by this application. Tests simulate speech APIs and do not establish real microphone-to-speaker performance.
-
-Use only exports you are authorized to access. Values reflect the source file, assume USD and are not independently verified. Missing source fields stay missing; no-street rows and invalid values are excluded, while conflicting values are flagged. The application's dataset and matches are available to its browser: this remains a trusted local prototype, without server-side user authentication or property authorization. A shared deployment needs those controls. The server binds to loopback only.
-
-## Verify
-
-Node.js is required only for the tests:
-
-```sh
-npm test
-```
-
-Tests use explicitly synthetic in-memory records, never the company's export. The local-only `/__qa/mobile` route previews the real UI at 390px width. Read [bootstrap verification](results/00001-bootstrap-finvoice/verification.md) for the copied source identities, actual checks and limitations.
-
-Development rules begin with [AGENTS.md](AGENTS.md); [KERNEL.MD](KERNEL.MD) lists the portable dependency set.
+This GitHub repository includes the deployed cloud implementation and the portable workflow kernel (`AGENTS.md`, `WORKFLOW.md`, `REPORTING.md`, `KERNEL.MD`). Active cloud checks live under `sites/` and `livekit-agent/`; use the commands above. The original `tests/` browser-speech checks, `server.py` and bootstrap results describe the earlier local prototype and are retained as historical source. They do not validate the current LiveKit UI. Deployment provenance is in `results/0010-plan.md` and GitHub synchronization evidence in `results/00011-github-sync/`.
