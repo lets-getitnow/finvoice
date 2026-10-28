@@ -92,8 +92,8 @@
 ## Documentation and Specifications
 
 - Read relevant README and specification files before implementation.
-- Read `specs/README.md` before starting specification work.
-- Specifications are forward-only: write each numbered spec once and never edit, append to, rename, or renumber it. New work or changed requirements require a new numbered spec that references and explicitly supersedes the relevant earlier requirements.
+- Read `specs/README.md` before starting specification work. Every spec must explain the user problem, intended experience, relationship to earlier requirements, essential terms and observable checks in plain language; do not rely on chat history or unexplained shorthand.
+- Specifications are normally fixed after publication. New work or changed requirements require a new numbered spec that references and explicitly supersedes the relevant earlier requirements. An explicit owner-authorized editorial revision may clarify existing specs while preserving their requirements, IDs, filenames and references; follow [specs/README.md](specs/README.md) and record the revision separately.
 - Record implementation progress, verification, completion notes, and follow-up prompt traceability in associated results records, not by changing an existing spec.
 - Keep requirements high-level and implementation-independent where possible.
 - Update documentation in the same change when commands, behavior, interfaces, or operational steps change.

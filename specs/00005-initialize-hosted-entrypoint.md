@@ -1,9 +1,25 @@
-# Initialize the hosted entrypoint
+# Initialize the Hosted Page
 
-User reports the same inert button after 00004. Correct the actual hosted HTML-to-controller startup chain; controller unit tests alone did not cover it. Prior private-data and LiveKit requirements remain effective.
+<a id="initialize-the-hosted-entrypoint"></a>
 
-AC-01: The HTML module entrypoint mounts the controller and attaches voice/search handlers. Keep Start talking disabled until mounting completes.
-AC-02: A bootstrap failure displays actionable inline recovery instead of an inert active button.
-AC-03: Verify initialization starting from the generated Worker's actual HTML, preserve existing checks, publish to the same public Site.
+Editorial revision: Codex, 2026-10-28. This owner-authorized rewrite clarifies the original requirements; acceptance IDs and intended behavior are preserved.
 
-Checks: reproduce missing onclick using the generated HTML module path, show pass after entrypoint correction, verify sign-in startup request and enabled handler; property/voice API regressions; native deployment success. DOM doubles do not establish real phone audio.
+## Why this change was requested
+
+After the previous voice-start fix, the owner still reported an unresponsive button. Tests that mounted the controller directly had missed the actual startup path: the hosted HTML loads a JavaScript entry module, and that module must initialize the controller before any button handler exists.
+
+The required experience is straightforward: the page either becomes usable or explains how to recover from a startup failure. It must not present an apparently active button that has no handler.
+
+## Relationship to earlier work
+
+This closes a startup gap left by [00004](00004-start-voice-without-data.md); it does not replace its voice-without-data requirement. Existing LiveKit and private-data requirements remain. “Mount” means initialize the controller against the page and attach its event handlers. The “generated Worker” is the built server application that serves the hosted HTML and assets.
+
+## Required outcome
+
+- **AC-01:** Make the JavaScript module loaded by the hosted HTML initialize the controller and attach voice/search handlers. Keep Start talking disabled until initialization completes.
+- **AC-02:** If startup fails, display an actionable recovery message beside the controls instead of leaving an active-looking, unresponsive button.
+- **AC-03:** Verify startup beginning with the generated server's actual HTML, preserve existing checks and publish through the same public Site.
+
+## How to verify
+
+Follow the entry-module path found in the generated HTML and reproduce the missing click handler before correction. After correction, check the installed handler, enabled control and the then-required sign-in startup request. Rerun property and voice API checks and inspect native deployment success. This historical sign-in check describes the startup design at this stage; it is not evidence of later startup behavior or real phone audio.

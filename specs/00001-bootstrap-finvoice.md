@@ -1,18 +1,35 @@
-# Bootstrap Finvoice
+# Create the Finvoice Repository
 
-Author: Codex. Date: 2026-10-27. Predecessor: none in this new destination.
+<a id="bootstrap-finvoice"></a>
+<a id="owner-intent"></a>
+<a id="acceptance"></a>
+<a id="bounds-and-verification-ideas"></a>
 
-## Owner intent
+Editorial revision: Codex, 2026-10-28. This owner-authorized rewrite clarifies the original requirements; acceptance IDs and intended behavior are preserved.
 
-The owner first requested publishing the source repository to GitHub, then narrowed the request: create a new app called finvoice, copy only the kernel and its dependency files plus the voice agent worked on, copy none of the API analysis, and publish to GitHub. This replaces the broader source-repository publication request. The selected voice app is the property valuation assistant developed in this conversation.
+## Why this change was requested
 
-## Acceptance
+On 2026-10-27, the owner narrowed an initial request to publish an entire source repository. The new request was to create a separate app named Finvoice containing only the property valuation voice assistant and the reusable development instructions it needed. The original repository also contained API analysis and unrelated experiments that were not part of the new app.
 
-- AC-01: Create a separate finvoice repository with the complete eleven-file portable kernel, preserving the chosen kernel bytes and closing required local references.
-- AC-02: Copy the property voice application's runtime and tests into a self-contained project, retain its lookup/clarification/voice behavior, name the app finvoice and document startup with an authorized external CSV.
-- AC-03: Exclude source API analysis, simulations, prior source specifications/results, unrelated voice demos, source Git history, cloud identity, credentials, datasets, dependencies and generated artifacts. Preserve the original repository.
-- AC-04: Verify copied source scope, kernel hashes/links, relevant tests, browser common/error/recovery and responsive layouts where practical, then commit and publish normally to a private GitHub finvoice repository under the authenticated owner's account. Report the URL and actual commit; disclose unverified audio.
+At this stage, Finvoice was a local browser application: a person supplied an authorized company CSV export, spoke or typed an address, answered clarification questions, and received the matching property's imported valuation. This spec describes that initial extraction, not the later hosted architecture.
 
-## Bounds and verification ideas
+The “portable kernel” means the eleven-file set of reusable agent instructions, workflow guidance and dependencies listed in [KERNEL.MD](../KERNEL.MD). “Closing references” means including the local files that those instructions require so their links work in the new repository.
 
-No application feature redesign, dataset upload, cloud-agent changes, Site publication or exposure of source credentials is authorized by this extraction. Company data remains outside Git; real source values are unverified beyond the owner's provenance statement. Synthetic tests stay isolated. Use existing installed tooling, no dependency installation. Test ideas: byte-compare kernel; validate allowlisted file inventory and links; run copied engineering suite; serve the copy using the original external CSV and verify actual lookup/error/mobile behavior; scan source for credentials; confirm GitHub privacy and matching remote commit.
+## Required outcome
+
+- **AC-01:** Create a separate Finvoice repository containing the complete eleven-file portable kernel. During extraction, preserve the selected files byte for byte and include every required local reference.
+- **AC-02:** Copy the property voice application's runtime and tests into a project that can run independently. Preserve address lookup, clarification and voice behavior, name the app Finvoice, and explain how to start it using an authorized CSV kept outside Git.
+- **AC-03:** Leave the original repository intact. Exclude its API analysis, simulations, prior specifications/results, unrelated voice demos, Git history, cloud identities, credentials, datasets, installed dependencies and generated artifacts.
+- **AC-04:** Check the copied file inventory, kernel hashes and links, and relevant tests. Where practical, exercise a successful lookup, an error and recovery, and narrow-screen layout in a browser. Commit and publish normally to a private Finvoice GitHub repository under the authenticated owner's account; report its URL and actual commit, and disclose any unverified audio behavior.
+
+## Scope and limits
+
+This extraction did not authorize feature redesign, uploading company data, changing cloud agents, publishing a website, exposing credentials or installing dependencies. Use available tooling. Company records remain outside Git, and the owner's provenance statement does not independently verify their valuations. Synthetic test records must stay isolated.
+
+## Relationship to earlier work
+
+This is the first spec in the new repository; it has no predecessor here. These are historical delivery constraints. [00002](00002-public-cloud.md) later changes hosting visibility, [00008](00008-server-owned-company-data.md) changes data delivery, and [00011](00011-github-sync.md) expands which cloud source belongs on GitHub. Later maintenance of workflow files does not retroactively change the byte-preservation check required for this original extraction.
+
+## How to verify
+
+Compare the extracted kernel bytes and allowed file inventory; check local links; run the copied test suite; serve the copy with the authorized external CSV and inspect lookup, error recovery and mobile layout; scan for credentials and excluded files; confirm GitHub visibility and that its commit matches the delivered source. Record results separately from this specification.

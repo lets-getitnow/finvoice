@@ -1,10 +1,26 @@
-# Partial address recommendations and clarification
+# Suggest Partial Address Matches
 
-User reports Mint 32 should show recommendations and asks about previously designed LiveKit disambiguation tools. Restore recommendations while retaining the minimal interface, source CSV and LiveKit text events. The recovered voice worker contains speech control RPC only; no historical function-tool definitions are available in this checkout. Do not claim those tools were preserved or invent their contract.
+<a id="partial-address-recommendations-and-clarification"></a>
 
-AC-01: Recognize street-before-number input. Offer partial-number candidates only as unconfirmed recommendations; never silently substitute a valuation.
-AC-02: Recommend addresses for street-only and ambiguous input, bounded to three visible choices, retaining confirmation/ordinal/ZIP correction context.
-AC-03: Show debounced recommendations while typing without speaking every keystroke. Preserve LiveKit transcript-to-lookup and spoken clarification.
-AC-04: Maintain server-only source data, bounded runtime loading and strict default resolver behavior for callers not opting into prefix recommendations. Verify the actual Mint 32 source case and publish.
+Editorial revision: Codex, 2026-10-28. This owner-authorized rewrite clarifies the original requirements; acceptance IDs and intended behavior are preserved.
 
-Checks: strict/suggestion resolver fixtures; confirmation/ZIP/ordinal flow; actual source recommendation/confirmation; preview does not reveal valuation or invoke speech; startup and API privacy regressions. Earlier named tool designs remain an explicit missing input; user asked asynchronously for their names/roles.
+## Why this change was requested
+
+The owner expected an incomplete phrase such as “Mint 32” to produce useful address recommendations. They also asked about previously designed LiveKit tools for resolving ambiguous speech. At this stage, the recovered worker contained only speech-control remote calls; the earlier function-tool definitions were not available.
+
+A partial address should help a person find the right record without silently choosing a different house number. For example, a longer source house number beginning with 32 may be suggested, but its price must not be treated as confirmed.
+
+## Relationship to earlier work
+
+Extend lookup while keeping the minimal page, server company CSV and LiveKit text events from [00007](00007-minimal-voice-interface.md) and [00008](00008-server-owned-company-data.md). Do not claim unavailable historical tool definitions were preserved or invent their contract. [00010](00010-livekit-disambiguation-tools.md) later defines the approved function-tool system; [00013](00013-selectable-address-choices.md) later improves recommendation presentation.
+
+## Required outcome
+
+- **AC-01:** Recognize a street name before a house number. Offer house-number-prefix candidates only as unconfirmed recommendations; never silently substitute a valuation.
+- **AC-02:** Recommend addresses for street-only or ambiguous input, showing at most three choices. Retain context for yes/no confirmation, numbered choices and ZIP corrections.
+- **AC-03:** Show recommendations after a short pause in typing rather than speaking on every keystroke. Preserve transcript-driven lookup and spoken clarification through LiveKit.
+- **AC-04:** Keep source data on the server, bound runtime data loading and retain strict default matching for callers that do not opt into prefix recommendations. Verify the reported Mint 32 case against the actual source and publish.
+
+## How to verify
+
+Use isolated fixtures to compare strict lookup with optional suggestions; exercise confirmation, ZIP replies and numbered choices. Check a source-backed recommendation and its later confirmation. Verify that typing previews neither reveal valuations nor invoke speech. Rerun startup and API privacy checks. Missing earlier tool names/roles were an unresolved input at this stage, not an implemented feature.

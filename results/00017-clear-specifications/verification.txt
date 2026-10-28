@@ -1,0 +1,19 @@
+PASS 00001-bootstrap-finvoice.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00002-public-cloud.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00003-retain-livekit.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00004-start-voice-without-data.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00005-initialize-hosted-entrypoint.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00006-read-livekit-microphone.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00007-minimal-voice-interface.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00008-server-owned-company-data.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00009-address-recommendations.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00010-livekit-disambiguation-tools.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00011-github-sync.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00012-match-price-submit.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00013-selectable-address-choices.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00014-document-current-source.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00015-spoken-address-evidence.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS 00016-microphone-startup.md: acceptance IDs/counts, original anchors, standalone context, index entry
+PASS local Markdown links and fragments in all specs, spec guide, AGENTS and README
+PASS 16 pre-existing specs revised; spec 00017 records the editorial authorization and review requirements
+Scope: documentation only; application runtime checks are not required for these prose edits.
