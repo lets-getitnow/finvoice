@@ -8,7 +8,7 @@ Run `npm run build` and `npm test`. Fixtures are isolated test doubles, never pr
 
 LiveKit uses the bundled browser SDK, authenticated session API and a separate cloud worker. Runtime secrets: LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET. Agent CA_azDo7whJaK6Q registers as finvoice; LIVEKIT_AGENT_NAME can override token dispatch if that changes. Code and Dockerfile are under livekit-agent/. No browser speech fallback. Real microphone/device behavior requires live validation.
 
-Typing shows up to three address recommendations after a short pause. Street-first input and partial house numbers are supported; a longer house number remains a suggestion until explicitly confirmed. Reply by voice/text with yes, an ordinal choice or a clarifying ZIP/city. The LiveKit worker currently provides speech RPC controls; deterministic address resolution runs on the server. Earlier proposed agent-tool definitions were not present in the recovered source.
+Typing shows up to three address recommendations after a short pause, presented as numbered address cards. Click a card to confirm that exact choice through the LiveKit tools and show its server-backed price; another card can be selected to compare. Cards show selection/loading states and work with keyboard and touch. Street-first input and partial house numbers are supported; a longer house number remains a suggestion until explicitly confirmed. Reply by voice/text with yes, an ordinal choice or a clarifying ZIP/city. Deterministic address resolution runs on the server through the LiveKit tool calls described below.
 
 ## LiveKit disambiguation tool calls
 

@@ -16,8 +16,15 @@
 <p id="status" role="status" hidden></p>
 <a id="sign-in" href="/signin-with-chatgpt?return_to=%2F" target="_top" hidden>Sign in with ChatGPT</a>
 <p id="transcript" aria-live="polite" hidden></p>
+<section id="choices-panel" class="choices-panel" aria-labelledby="choices-heading" hidden>
+<div class="choices-header"><h2 id="choices-heading">Possible matches</h2><p id="choices-hint">Select an address to see its price.</p></div>
+<div id="choices" class="choice-list" role="group" aria-label="Address choices"></div>
+</section>
+<section id="answer" class="answer" aria-label="Selected property" hidden>
+<p id="answer-label" class="answer-label" hidden>Matched address</p>
 <p id="result" aria-live="polite" hidden></p>
 <output id="price" aria-label="Property value" aria-describedby="result" aria-live="polite" hidden></output>
+</section>
 </main>
 <script type="module" src="bootstrap.mjs"></script>
 </body>
