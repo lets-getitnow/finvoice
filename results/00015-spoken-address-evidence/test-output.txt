@@ -1,0 +1,49 @@
+
+> finvoice@0.1.0 test
+> node sites/check.mjs && node --test --test-isolation=none sites/start-talking.test.mjs sites/disambiguation.test.mjs sites/address-tools.test.mjs sites/voice-rpc.test.mjs sites/match-price.test.mjs sites/00015-spoken-address.test.mjs
+
+Server dataset fingerprint/metadata, no browser CSV, disabled uploads, authenticated automatic lookup and synthetic decoding checks passed.
+LiveKit assets, session auth/origin/method boundaries and signed five-minute room-scoped grants passed (synthetic credentials).
+✔ 00015: spoken forms match the numeric address (45.900591ms)
+✔ 00015: number-only replies are not rearranged as street-first addresses (2.619025ms)
+✔ 00015: supplied numbers and streets survive conflicting model hints (4.413181ms)
+✔ 00015: literal numbered street names and uncertain matches stay safe (1.522237ms)
+✔ three-phase tools handle partial speech without leaking unconfirmed valuations (1.506731ms)
+✔ model cannot invent yes; withdrawal and unknown replies preserve safety (4.008098ms)
+✔ explicit confirmation permits source-backed valuation and keeps context (2.228368ms)
+✔ canonical repairs preserve house numbers and spoken number groups (0.281956ms)
+✔ broker enforces phase order and drops cancelled/old turns (1.960906ms)
+✔ tool API requires authenticated same-origin requests (0.485318ms)
+✔ phonetic spelling and fragmented numbers remain confirmation-only (1.264312ms)
+✔ a rejected candidate is not re-offered after an uncertain reply (3.258484ms)
+✔ cancelled in-flight tool response cannot overwrite conversation state (0.441675ms)
+✔ semantic tool hints remain unconfirmed and cannot replace a detail with a new address (2.960762ms)
+✔ model ordinal hint cannot manufacture confirmation for an uncertain actual reply (1.808169ms)
+✔ Mint 32 recommends a longer house number but never confirms it automatically (0.376635ms)
+✔ partial street shows bounded recommendations even without house number (0.222214ms)
+✔ default strict resolver never silently substitutes a different house number (0.134366ms)
+✔ explicit ZIP reply narrows street recommendations (0.251754ms)
+✔ unique exact actual address returns its source price immediately (1.20419ms)
+✔ explicit Enter submit control is present (0.958837ms)
+✔ prefix and phonetic suggestions still do not expose a valuation (2.100421ms)
+✔ a model-normalized spelling guess cannot become an automatic exact match (1.148136ms)
+✔ minimal page contains a text input, Enter submit and Speak control (0.181466ms)
+✔ LiveKit capture preserves interim/final text events without records (1.58929ms)
+✔ same button cancels connection or playback; sign-in errors remain recoverable (0.21965ms)
+✔ Enter invokes LiveKit resolve and a unique exact match displays its price (2.554287ms)
+✔ published HTML entrypoint mounts the real controller and installs click handlers (127.039158ms)
+✔ typing previews recommendations without speech and keeps context for a choice (302.393349ms)
+✔ query changes clear the price and zero-valued matches remain visible (1.413944ms)
+✔ conflicting source prices are shown as a conflict without a chosen headline price (1.160807ms)
+✔ 00013: address cards select through LiveKit tools and switch prices without another submit (303.473418ms)
+✔ 00013: removed cards and cancelled tool results cannot price a newer query (301.086333ms)
+✔ 00013: a failed selection is retryable and source conflicts never get a headline price (604.045857ms)
+✔ LiveKit RPC admits only current agent/turn, forwards tools and delivers result events (1.156751ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1751.316408

@@ -1,0 +1,21 @@
+# Spoken address evidence
+
+Codex, 2026-10-28. Prompt and acceptance are in specification 00015. Baseline workspace was 47d30a5; fetched and fast-forwarded to GitHub 181c0ae to preserve current selectable cards and documentation. Sites baseline c7fdf13. Initial draft numbering was corrected before commit after discovering existing 00013 and 00014 work.
+
+Decision: retain deterministic raw address evidence over conflicting model hints and avoid interpreting number-only speech as street-first input. A special case for Mint would not address other streets/numbers. Microphone/agent deployment, records, visual layout and access are outside this patch.
+
+Reproduction: existing normalize/parse already reads “Three twenty mint” as house 320, name mint. Synthetic three-phase tool flow fails when model normalized_hint is “3 Twenty Mint”, returning no match. Number-only canonicalization reads “three twenty” as house 20, street three. Both focused tests failed before correction and pass afterward. Exact historical model arguments from the screenshot are unavailable; this is a reproduced failure mechanism, not a claim to have inspected that phone session.
+
+Implementation: a parsed house/full address cannot be replaced by a model interpretation. Number-only reply stays intact instead of being rearranged. Existing correction/semantic-detail behavior and confirmation/valuation rules remain. Four focused synthetic tests cover grouped/cardinal/digit and street-first forms, number-only house follow-up, competing model hints/unknown intent, numbered street names and uncertain prefixes. Added to npm test.
+
+Source recovery: local private CSV was absent. Recovered the original owner export from its pinned original Site repository commit into ignored private-data/properties.csv. Production build passes its unchanged approved SHA-256 and validates 84,897 source rows / 77,674 searchable addresses. The export is owner-provided, not independently verified. Synthetic fixtures never enter the production build.
+
+Actual original-data generated Worker probe: all three tools with actual reply “Three twenty mint” and conflicting model hint “3 Twenty Mint” return one candidate, street 320 MINT RIDGE DR, kind choose / field confirm, with valuation withheld. This demonstrates source-backed retrieval of the requested address while preserving confirmation for incomplete street names. It does not demonstrate phone audio or model behavior in a live room.
+
+Recovery: initial shell credential-input setup failed locally (stdin script consumed stdin); corrected to a script with hidden terminal input. First Git clone network attempt failed because the shell lacked network access; second network attempt with supported network permission succeeded. Source helper scripts are not installed in this environment; used normal Git with credentials only in process memory and stdin. A patch replay after fast-forward failed against newly added documentation; applied the two intended edits directly and reverified. No force pushes, access changes, source-data edits or runtime credential files.
+
+Tasks: reproduce AC-01/02 done; implement and synthetic tests done; original-data build and tool probe done. AC-03 full regression and publication in progress. Self-review by Codex; no independent/device/browser QA claimed. Browser control helper is unavailable; existing UI unchanged.
+
+Validation: npm test passes all 35 JavaScript tests plus generated-Worker source/auth/privacy checks. Python initially failed under system Python without LiveKit; rerun under the existing project .venv. Site checkout initially had older documentation than GitHub; synchronized the current tracked application source before rebuilding to require identical generated Workers. This preserves specification 00014's documented source as well as 00013's cards.
+
+Project-venv Python rerun passed all seven unchanged worker tests. AC-01/02 satisfied by focused synthetic failures-to-pass sequence and original-data Worker lookup; full numeric address behavior, prefix safety, clickable cards, retry/cancel recovery and source disclosure checks pass. No UI layout or worker deployment change. Publication pending; implementation self-review checked the two guards and compatibility with existing correction and city clarification tests.

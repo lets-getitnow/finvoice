@@ -53,7 +53,8 @@ export function canonicalAddressReply(raw){
   value=previous.house&&!corrected.house?`${previous.house} ${tail}`:`actually ${tail}`;
  }
  const trailing=value.match(new RegExp(`^(.+?)\\s+((?:(?:${numberVocabulary})(?:\\s+|$))+)$`,'i'));
- if(trailing&&/[a-z]/i.test(trailing[1]))value=`${normalize(trailing[2])} ${trailing[1]}`;
+ // A number-only reply is not a street-first address.
+ if(trailing&&/[a-z]/i.test(trailing[1])&&!/^\d/.test(normalize(trailing[1])))value=`${normalize(trailing[2])} ${trailing[1]}`;
  return value.slice(0,250);
 }
 /**
@@ -130,7 +131,9 @@ export async function addressTools(request,env,source={info:serverInfo,load:load
     if(hint&&!isYes(raw)&&!onlyReject&&!controlHint&&['address','correction'].includes(b.args?.intent)){
       const interpreted=canonicalAddressReply(hint),hintParts=new AddressConversation([]).parse(interpreted);
       // A reply to a detail question cannot invent a replacement full address.
-      if(!context.last_question?.field||(rawParts.house&&rawParts.name)||!(hintParts.house&&hintParts.name))canonical=interpreted;
+      // Preserve deterministic numeric evidence and complete supplied addresses.
+      const preservesAddress=!rawParts.house||(!rawParts.name&&hintParts.house===rawParts.house);
+      if(preservesAddress&&(!context.last_question?.field||!(hintParts.house&&hintParts.name)))canonical=interpreted;
     }
     if(!isYes(raw)&&!onlyReject){
       const field=b.args?.intent==='correction'&&b.args?.detail!=='auto'?b.args?.detail:context.last_question?.field;

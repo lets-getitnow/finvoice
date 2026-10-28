@@ -23,3 +23,5 @@ Run Python checks with `python -m unittest discover -s livekit-agent -p 'test_*.
 ## Repository and checks
 
 This GitHub repository includes the deployed cloud implementation and the portable workflow kernel (`AGENTS.md`, `WORKFLOW.md`, `REPORTING.md`, `KERNEL.MD`). Active cloud checks live under `sites/` and `livekit-agent/`; use the commands above. The original `tests/` browser-speech checks, `server.py` and bootstrap results describe the earlier local prototype and are retained as historical source. They do not validate the current LiveKit UI. Deployment provenance is in `results/0010-plan.md` and GitHub synchronization evidence in `results/00011-github-sync/`.
+
+Spoken house numbers use the same deterministic parser as typed addresses. Complete supplied addresses and numeric house evidence take precedence over model normalization hints; number-only spoken replies remain intact. Partial street names return source-backed recommendations and require confirmation before showing a price.

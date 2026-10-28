@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node sites/build.mjs",
-    "test": "node sites/check.mjs && node --test --test-isolation=none sites/start-talking.test.mjs sites/disambiguation.test.mjs sites/address-tools.test.mjs sites/voice-rpc.test.mjs sites/match-price.test.mjs"
+    "test": "node sites/check.mjs && node --test --test-isolation=none sites/start-talking.test.mjs sites/disambiguation.test.mjs sites/address-tools.test.mjs sites/voice-rpc.test.mjs sites/match-price.test.mjs sites/00015-spoken-address.test.mjs"
   },
   "dependencies": {
     "livekit-client": "2.23.0"
